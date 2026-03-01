@@ -2,33 +2,1765 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Podcast Offline SPA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Balta Media</title>
+    <!-- Manifest e iconos PWA -->
     <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0F0F0F">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <!-- Tailwind y fuentes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
-        nav a { margin-right: 15px; }
-        .episodio-detalle { max-width: 600px; margin: auto; }
-        .cover { width: 100%; max-width: 300px; border-radius: 8px; }
-        .lista-descargas { display: flex; flex-direction: column; gap: 20px; }
-        .episodio-card { background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; gap: 15px; align-items: flex-start; }
-        .episodio-card img { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; }
-        .episodio-card > div { flex: 1; }
-        audio { width: 100%; margin-top: 10px; }
-        .btn-eliminar { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
-        .btn-eliminar:hover { background: #c0392b; }
-        .btn-descargar { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
-        .btn-descargar:hover { background: #2980b9; }
+        /* ========== ESTILOS GLOBALES ========== */
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #050505;
+            color: white;
+            overflow-x: hidden;
+            margin: 0;
+            transition: margin-left 0.3s ease;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Toast personalizado */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(8px);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border-left: 4px solid #3b82f6;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            font-size: 14px;
+            font-weight: 500;
+            max-width: 300px;
+            transform: translateX(100%);
+            animation: slideIn 0.3s forwards;
+            pointer-events: auto;
+        }
+        @keyframes slideIn { to { transform: translateX(0); } }
+
+        /* ========== BARRA LATERAL (ESCRITORIO) ========== */
+        .desktop-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            background: #0F0F0F;
+            color: #fff;
+            z-index: 900;
+            transition: width 0.3s ease;
+            overflow-x: hidden;
+            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .desktop-sidebar::-webkit-scrollbar { display: none; }
+        .desktop-sidebar.collapsed { width: 70px; }
+        .desktop-sidebar.expanded { width: 15%; min-width: 180px; }
+        @media (max-width: 768px) { .desktop-sidebar { display: none; } }
+
+        .sidebar-toggle {
+            display: flex;
+            justify-content: flex-end;
+            padding: 16px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        .sidebar-toggle svg { width: 24px; height: 24px; fill: white; transition: transform 0.2s; }
+        .desktop-sidebar.expanded .sidebar-toggle svg { transform: rotate(180deg); }
+
+        .nav-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 8px;
+            margin-bottom: 30px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+            text-decoration: none;
+            padding: 10px;
+            border-radius: 8px;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.1); }
+        .nav-item.active { background: rgba(255,255,255,0.2); }
+        .nav-item img { width: 24px; height: 24px; filter: brightness(1.2); flex-shrink: 0; }
+        .nav-item span { font-size: 14px; font-weight: 500; transition: opacity 0.2s; }
+        .desktop-sidebar.collapsed .nav-item span { display: none; }
+
+        .rec-section {
+            padding: 0 8px;
+            margin-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 16px;
+        }
+        .desktop-sidebar.collapsed .rec-section { display: none; }
+        .rec-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .rec-header a {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .rec-header a:hover { opacity: 1; }
+        .rec-header svg { width: 16px; height: 16px; fill: white; }
+        .rec-list { display: flex; flex-direction: column; gap: 12px; }
+        .rec-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+        .rec-item-info { flex: 1; min-width: 0; }
+        .rec-item-title {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .rec-item-author {
+            font-size: 11px;
+            opacity: 0.7;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .rec-play-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .rec-play-btn:hover { background: rgba(255,255,255,0.2); }
+        .rec-play-btn svg { width: 18px; height: 18px; fill: white; }
+
+        /* ========== AJUSTES DEL REPRODUCTOR ========== */
+        .player-universal {
+            transition: left 0.3s ease, width 0.3s ease !important;
+        }
+
+        /* ========== ESTILOS COMUNES PARA TARJETAS ========== */
+        /* Tarjeta estándar */
+        .card-std, .ba-card-std, .np-card-std {
+            min-width: 200px;
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            cursor: pointer;
+            position: relative;
+        }
+        .card-std .img-container, .ba-card-std .ba-img-container, .np-card-std .np-img-container {
+            width: 100%;
+            aspect-ratio: 1/1;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #1a1a1a;
+            position: relative;
+        }
+        .card-std img, .ba-card-std img, .np-card-std img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+        .card-std:hover img, .ba-card-std:hover img, .np-card-std:hover img {
+            transform: scale(1.05);
+        }
+        .overlay-full, .ba-overlay-full, .np-overlay-full {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            transition: opacity 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            border-radius: 12px;
+        }
+        .card-std:hover .overlay-full, .ba-card-std:hover .ba-overlay-full, .np-card-std:hover .np-overlay-full {
+            opacity: 1;
+        }
+        .mobile-play, .ba-mobile-play, .np-mobile-play {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            width: 40px;
+            height: 40px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .mobile-play img, .ba-mobile-play img, .np-mobile-play img {
+            width: 20px;
+            height: 20px;
+            filter: brightness(0) invert(1);
+        }
+        @media (min-width: 1024px) {
+            .mobile-play, .ba-mobile-play, .np-mobile-play {
+                display: none;
+            }
+        }
+        .action-icon, .ba-action-icon, .np-action-icon {
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            filter: brightness(0) invert(1);
+        }
+        .action-icon:hover, .ba-action-icon:hover, .np-action-icon:hover {
+            transform: scale(1.1);
+        }
+        .play-icon-lg, .ba-play-icon-lg, .np-play-icon-lg {
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            filter: brightness(0) invert(1);
+        }
+        .play-icon-lg:hover, .ba-play-icon-lg:hover, .np-play-icon-lg:hover {
+            transform: scale(1.1);
+        }
+        .play-icon-sm, .ba-play-icon-sm, .np-play-icon-sm {
+            width: 20px;
+            height: 20px;
+            filter: brightness(0) invert(1);
+        }
+
+        /* Carrusel */
+        .carousel-wrapper, .ba-carousel-wrapper, .np-carousel-wrapper {
+            position: relative;
+        }
+        .nav-btn, .ba-nav-btn, .np-nav-btn {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            z-index: 40;
+            width: 60px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s;
+        }
+        .nav-btn.left, .ba-nav-btn.left, .np-nav-btn.left {
+            left: 0;
+            background: linear-gradient(to right, #050505 0%, transparent 100%);
+        }
+        .nav-btn.right, .ba-nav-btn.right, .np-nav-btn.right {
+            right: 0;
+            background: linear-gradient(to left, #050505 0%, transparent 100%);
+        }
+        .nav-btn button, .ba-nav-btn button, .np-nav-btn button {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .nav-btn button:hover, .ba-nav-btn button:hover, .np-nav-btn button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+        .carousel-wrapper:hover .nav-btn, .ba-carousel-wrapper:hover .ba-nav-btn, .np-carousel-wrapper:hover .np-nav-btn {
+            display: flex;
+        }
+        .horizontal-scroll, .ba-horizontal-scroll, .np-horizontal-scroll {
+            display: flex;
+            gap: 24px;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            padding: 8px 4px;
+        }
+
+        /* Lista vertical */
+        .list-group, .ba-list-group, .np-series-group {
+            min-width: 340px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .list-item, .ba-list-item, .np-series-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 6px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .list-item:hover, .ba-list-item:hover, .np-series-item:hover {
+            background: rgba(255,255,255,0.08);
+        }
+        .list-item .thumb, .ba-list-item .ba-thumb, .np-series-item .np-series-thumb {
+            width: 56px;
+            height: 56px;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .list-item .thumb img, .ba-list-item .ba-thumb img, .np-series-item .np-series-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .overlay-mini, .ba-overlay-mini, .np-overlay-mini {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            opacity: 0;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+        .list-item:hover .overlay-mini, .ba-list-item:hover .ba-overlay-mini, .np-series-item:hover .np-overlay-mini {
+            opacity: 1;
+        }
+
+        /* Secciones */
+        .section-header, .ba-section-header, .np-section-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 0 4px;
+        }
+        .section-header h2, .ba-section-header h2, .np-section-header h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            transition: color 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .section-header h2:hover, .ba-section-header h2:hover, .np-section-header h2:hover {
+            color: #3b82f6;
+        }
+        .section-header button, .ba-section-header button, .np-section-header button {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #aaa;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: color 0.2s;
+            white-space: nowrap;
+        }
+        .section-header button:hover, .ba-section-header button:hover, .np-section-header button:hover {
+            color: white;
+        }
+
+        /* Grid */
+        .grid-container, .ba-grid-container, .np-grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-top: 24px;
+        }
+        @media (min-width: 768px) {
+            .grid-container, .ba-grid-container, .np-grid-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (min-width: 1024px) {
+            .grid-container, .ba-grid-container, .np-grid-container {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        @media (min-width: 1280px) {
+            .grid-container, .ba-grid-container, .np-grid-container {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        /* Hero (novedades) */
+        .np-hero-carousel {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            border-radius: 24px;
+            overflow: hidden;
+            margin-bottom: 40px;
+            background: #111;
+        }
+        .np-hero-slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0;
+            cursor: pointer;
+        }
+        .np-hero-slide.active { opacity: 1; z-index: 2; }
+        .np-hero-image {
+            width: 60%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .np-hero-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .np-hero-image::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 70%;
+            height: 100%;
+            background: linear-gradient(to right, #050505 0%, rgba(5,5,5,0.8) 50%, transparent 100%);
+            z-index: 2;
+            pointer-events: none;
+        }
+        .np-hero-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px;
+            z-index: 3;
+            color: white;
+            background: transparent;
+            pointer-events: none;
+        }
+        .np-hero-content h1,
+        .np-hero-content .author,
+        .np-hero-controls {
+            pointer-events: auto;
+        }
+        .np-hero-content h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        .np-hero-content .author {
+            font-size: 1.2rem;
+            color: #ccc;
+            margin-bottom: 24px;
+        }
+        .np-hero-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        .np-hero-controls-left { display: flex; gap: 20px; }
+        .np-hero-controls-left button {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .np-hero-controls-left button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+        .np-hero-controls-left button img {
+            width: 24px;
+            height: 24px;
+            filter: brightness(0) invert(1);
+        }
+        .np-hero-play-btn {
+            background: #3b82f6;
+            border: none;
+            border-radius: 40px;
+            padding: 12px 32px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .np-hero-play-btn:hover {
+            background: #2563eb;
+            transform: scale(1.05);
+        }
+        .np-hero-play-btn img {
+            width: 24px;
+            height: 24px;
+            filter: brightness(0) invert(1);
+        }
+        .np-hero-indicators {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 4;
+        }
+        .np-hero-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.4);
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .np-hero-indicator.active {
+            background: white;
+            transform: scale(1.2);
+        }
+        .np-hero-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 48px;
+            height: 48px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            z-index: 5;
+            transition: background 0.2s;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .np-hero-arrow:hover { background: rgba(0,0,0,0.8); }
+        .np-hero-arrow.left { left: 20px; }
+        .np-hero-arrow.right { right: 20px; }
+        @media (max-width: 768px) {
+            .np-hero-carousel { height: 400px; }
+            .np-hero-slide { justify-content: flex-end; }
+            .np-hero-image { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+            .np-hero-image::before {
+                background: linear-gradient(to top, #050505 0%, rgba(5,5,5,0.8) 40%, transparent 100%);
+                width: 100%;
+                height: 70%;
+                top: auto;
+                bottom: 0;
+            }
+            .np-hero-content {
+                width: 100%;
+                padding: 20px;
+                bottom: 0;
+                top: auto;
+                justify-content: flex-end;
+            }
+            .np-hero-content h1 { font-size: 2rem; }
+            .np-hero-controls-left { display: none; }
+            .np-hero-play-btn { width: 100%; justify-content: center; }
+        }
+
+        /* Video expandible */
+        .card-video {
+            height: 220px;
+            width: 220px;
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            cursor: pointer;
+        }
+        @media (min-width: 1024px) { .card-video:hover { width: 390px; } }
+        .card-video img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s;
+        }
+        .card-video .img-default { z-index: 1; }
+        .card-video .img-wide { opacity: 0; z-index: 2; }
+        .card-video:hover .img-wide { opacity: 1; }
+        .video-badge {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.6);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            z-index: 5;
+        }
+
+        /* Página de instalación */
+        .app-install {
+            text-align: center;
+            padding: 60px 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .app-install h1 { font-size: 2.5rem; margin-bottom: 20px; }
+        .app-install p { color: #aaa; margin-bottom: 30px; }
+        .install-btn {
+            background: #3b82f6;
+            border: none;
+            color: white;
+            padding: 16px 32px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .install-btn:hover { background: #2563eb; }
+
+        /* 404 */
+        .not-found {
+            text-align: center;
+            padding: 100px 20px;
+        }
+        .not-found h1 { font-size: 4rem; margin-bottom: 20px; }
+        .not-found p { color: #aaa; margin-bottom: 30px; }
     </style>
 </head>
 <body>
-    <nav>
-        <a href="/">Inicio</a>
-        <a href="/mis-descargas">Mis descargas</a>
-    </nav>
-    <main id="main-content"></main>
 
-    <script src="/db.js"></script>
-    <script src="/app.js"></script>
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Barra lateral (escritorio) -->
+<div id="sidebar-container"></div>
+
+<!-- Header superior (móvil) -->
+<header id="mobile-header" class="lg:hidden sticky top-0 z-50 bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
+    <div class="flex items-center justify-between px-4 py-3">
+        <a href="/" class="flex items-center gap-2" onclick="event.preventDefault(); Router.navigate('/')">
+            <img src="https://media.baltaanay.org/web/image/885-f3d79ca9/xhbalta-aula.png" alt="Logo" class="w-6 h-6 rounded-lg">
+            <span class="text-lg font-bold">Balta Media</span>
+        </a>
+        <div class="flex items-center gap-3">
+            <a href="/buscar" onclick="event.preventDefault(); Router.navigate('/buscar')" class="text-gray-400 hover:text-white">
+                <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="w-5 h-5">
+            </a>
+            <a href="/novedades" onclick="event.preventDefault(); Router.navigate('/novedades')" class="text-gray-400 hover:text-white">
+                <img src="https://media.baltaanay.org/web/image/796-aee658de/Explore.png" alt="Novedades" class="w-5 h-5">
+            </a>
+            <button id="mobile-user-btn" class="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500"></button>
+        </div>
+    </div>
+</header>
+
+<!-- Contenedor principal de vistas -->
+<main id="main-content" class="max-w-[1600px] mx-auto px-4 sm:px-6 mt-4 min-h-screen"></main>
+
+<!-- Scripts -->
+<script src="episodios.js"></script>
+<script>
+    // ========== ICONOS GLOBALES ==========
+    const ICONS = {
+        play: 'https://marca1.odoo.com/web/image/508-f876320c/play.svg',
+        add: 'https://marca1.odoo.com/web/image/509-c555b4ef/a%C3%B1adir%20a.svg',
+        added: 'https://nikichitonjesus.odoo.com/web/image/1112-d141b3eb/a%C3%B1adido.png',
+        dl: 'https://marca1.odoo.com/web/image/510-7a9035c1/descargar.svg',
+        noDl: 'https://nikichitonjesus.odoo.com/web/image/1051-622a3db3/no-desc.webp',
+        remove: 'https://nikichitonjesus.odoo.com/web/image/811-8a809533/remove.png',
+        share: 'https://marca1.odoo.com/web/image/511-3d2d2e2c/compartir.svg'
+    };
+
+    // ========== DATOS PROCESADOS ==========
+    const DATA = window.processEpisodes();
+
+    // ========== TOAST ==========
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    window.showToast = showToast;
+
+    // ========== FUNCIONES UNIVERSALES ==========
+    function playEpisode(ep) {
+        if (typeof window.playEpisodeExpanded === 'function') {
+            window.playEpisodeExpanded(
+                ep.mediaUrl,
+                ep.type,
+                ep.cover,
+                ep.coverWide || ep.cover,
+                ep.title,
+                ep.detailUrl,
+                ep.author,
+                [],
+                ep.description,
+                ep.allowDownload
+            );
+        } else {
+            window.open(ep.mediaUrl, '_blank');
+        }
+    }
+
+    function addToPlaylist(ep) {
+        let playlist = JSON.parse(localStorage.getItem('streamhub_playlist')) || [];
+        const exists = playlist.some(i => i.mediaUrl === ep.mediaUrl);
+        if (!exists) {
+            playlist.push({
+                mediaUrl: ep.mediaUrl,
+                type: ep.type,
+                cover: ep.cover,
+                title: ep.title,
+                detailUrl: ep.detailUrl,
+                author: ep.author,
+                description: ep.description,
+                allowDownload: ep.allowDownload
+            });
+            localStorage.setItem('streamhub_playlist', JSON.stringify(playlist));
+            showToast('Añadido a Mi lista');
+            return true;
+        } else {
+            showToast('Ya está en Mi lista');
+            return false;
+        }
+    }
+
+    function removeFromPlaylist(mediaUrl) {
+        let playlist = JSON.parse(localStorage.getItem('streamhub_playlist')) || [];
+        playlist = playlist.filter(i => i.mediaUrl !== mediaUrl);
+        localStorage.setItem('streamhub_playlist', JSON.stringify(playlist));
+        showToast('Eliminado de Mi lista');
+    }
+
+    function togglePlaylist(ep) {
+        let playlist = JSON.parse(localStorage.getItem('streamhub_playlist')) || [];
+        const exists = playlist.some(i => i.mediaUrl === ep.mediaUrl);
+        if (exists) {
+            removeFromPlaylist(ep.mediaUrl);
+            return false;
+        } else {
+            addToPlaylist(ep);
+            return true;
+        }
+    }
+
+    function downloadEpisode(ep) {
+        if (!ep.allowDownload) {
+            showToast('Descarga no disponible');
+            return;
+        }
+        const a = document.createElement('a');
+        a.href = ep.mediaUrl;
+        a.download = ep.title.replace(/[^a-z0-9]/gi, '_') + (ep.type === 'video' ? '.mp4' : '.mp3');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => {
+            if (!a.href.startsWith('blob:')) {
+                window.open(ep.mediaUrl, '_blank');
+            }
+        }, 1000);
+    }
+
+    function shareEpisode(title, url) {
+        if (navigator.share) {
+            navigator.share({ title, url });
+        } else {
+            navigator.clipboard.writeText(url);
+            showToast('Enlace copiado al portapapeles');
+        }
+    }
+
+    // ========== PLAYLIST, LIKES, HISTORIAL ==========
+    const STORAGE_KEYS = {
+        LIKES: 'streamhub_likes',
+        PLAYLIST: 'streamhub_playlist',
+        HISTORY: 'streamhub_history'
+    };
+
+    function getLikes() { return JSON.parse(localStorage.getItem(STORAGE_KEYS.LIKES)) || []; }
+    function getPlaylist() { return JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAYLIST)) || []; }
+    function getHistory() { return JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY)) || []; }
+
+    function saveLikes(likes) { localStorage.setItem(STORAGE_KEYS.LIKES, JSON.stringify(likes)); }
+    function savePlaylist(pl) { localStorage.setItem(STORAGE_KEYS.PLAYLIST, JSON.stringify(pl)); }
+    function saveHistory(hist) { localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(hist)); }
+
+    function addToHistory(ep) {
+        let history = getHistory();
+        history = history.filter(i => i.mediaUrl !== ep.mediaUrl); // evitar duplicados
+        history.unshift({
+            mediaUrl: ep.mediaUrl,
+            type: ep.type,
+            cover: ep.cover,
+            title: ep.title,
+            detailUrl: ep.detailUrl,
+            author: ep.author,
+            description: ep.description,
+            allowDownload: ep.allowDownload,
+            timestamp: Date.now()
+        });
+        if (history.length > 50) history.pop(); // límite
+        saveHistory(history);
+    }
+
+    // ========== ROUTER SPA ==========
+    const Router = {
+        init() {
+            document.addEventListener('click', e => {
+                const link = e.target.closest('a');
+                if (!link) return;
+                const href = link.getAttribute('href');
+                if (!href || href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
+                e.preventDefault();
+                this.navigate(href);
+            });
+            window.addEventListener('popstate', () => this.renderPath());
+            this.renderPath();
+        },
+
+        navigate(path) {
+            history.pushState({}, '', path);
+            this.renderPath();
+        },
+
+        renderPath() {
+            const path = window.location.pathname;
+            const search = window.location.search;
+            const main = document.getElementById('main-content');
+
+            let content = '';
+            let pageTitle = 'Balta Media';
+
+            if (path === '/' || path === '') {
+                content = renderFeed();
+                pageTitle = 'Inicio | Balta Media';
+            } else if (path === '/novedades') {
+                content = renderNovedades();
+                pageTitle = 'Novedades | Balta Media';
+            } else if (path === '/biblioteca') {
+                content = renderBiblioteca();
+                pageTitle = 'Mi biblioteca | Balta Media';
+            } else if (path === '/buscar') {
+                if (search.includes('?q=')) {
+                    const query = new URLSearchParams(search).get('q');
+                    content = renderSearchResults(query);
+                    pageTitle = `Resultados para "${query}" | Balta Media`;
+                } else {
+                    content = renderExplore();
+                    pageTitle = 'Explorar | Balta Media';
+                }
+            } else if (path === '/app') {
+                content = renderAppPage();
+                pageTitle = 'Instalar app | Balta Media';
+            } else {
+                // Buscar serie
+                const serieEpisodes = DATA.filter(ep => ep.series && ep.series.url_serie === path);
+                if (serieEpisodes.length > 0) {
+                    content = renderSerie(serieEpisodes);
+                    pageTitle = `${serieEpisodes[0].series.titulo_serie} | Balta Media`;
+                } else {
+                    const episode = DATA.find(ep => ep.detailUrl === path);
+                    if (episode) {
+                        content = renderEpisode(episode);
+                        pageTitle = `${episode.title} | Balta Media`;
+                    } else {
+                        content = renderNotFound();
+                        pageTitle = 'Página no encontrada | Balta Media';
+                    }
+                }
+            }
+
+            main.innerHTML = content;
+            document.title = pageTitle;
+
+            // Actualizar barra lateral y botón móvil
+            updateSidebarActive();
+            updateUserButton();
+        }
+    };
+
+    // ========== FUNCIONES DE RENDERIZADO ==========
+
+    // Normalizar episodio para tarjetas
+    function normalizeItem(item) {
+        return {
+            ...item,
+            cover: item.cover || 'https://via.placeholder.com/200x200?text=No+image',
+            coverWide: item.coverWide || item.cover
+        };
+    }
+
+    // Tarjeta estándar
+    function renderStandardCard(ep, inPlaylist = false) {
+        const item = normalizeItem(ep);
+        return `
+            <div class="card-std" data-mediaurl="${item.mediaUrl}">
+                <div class="img-container" onclick="playEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                    <img src="${item.cover}" loading="lazy">
+                    <div class="overlay-full">
+                        <img src="${inPlaylist ? ICONS.added : ICONS.add}" class="action-icon" onclick="event.stopPropagation(); togglePlaylist(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;" title="${inPlaylist ? 'Quitar de mi lista' : 'Añadir a mi lista'}">
+                        <img src="${ICONS.play}" class="play-icon-lg" onclick="event.stopPropagation(); playEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;" title="Reproducir">
+                        <img src="${item.allowDownload ? ICONS.dl : ICONS.noDl}" class="action-icon" onclick="event.stopPropagation(); downloadEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;" title="${item.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
+                    </div>
+                    <span class="mobile-play" onclick="event.stopPropagation(); playEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;">
+                        <img src="${ICONS.play}">
+                    </span>
+                </div>
+                <div onclick="Router.navigate('${item.detailUrl}')">
+                    <div class="font-bold text-sm text-white truncate">${item.title}</div>
+                    <div class="text-xs text-gray-500 truncate">${item.author}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Tarjeta de video expandible
+    function renderVideoCard(ep, inPlaylist = false) {
+        const item = normalizeItem(ep);
+        const hasWide = item.coverWide && item.coverWide !== item.cover;
+        return `
+            <div class="card-video group" data-mediaurl="${item.mediaUrl}">
+                <img src="${item.cover}" class="img-default">
+                ${hasWide ? `<img src="${item.coverWide}" class="img-wide">` : ''}
+                <div class="overlay-full">
+                    <img src="${inPlaylist ? ICONS.added : ICONS.add}" class="action-icon" onclick="event.stopPropagation(); togglePlaylist(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;">
+                    <img src="${ICONS.play}" class="play-icon-lg" onclick="event.stopPropagation(); playEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;">
+                    <img src="${item.allowDownload ? ICONS.dl : ICONS.noDl}" class="action-icon" onclick="event.stopPropagation(); downloadEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;">
+                </div>
+                <span class="mobile-play" onclick="event.stopPropagation(); playEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;">
+                    <img src="${ICONS.play}">
+                </span>
+                <div class="video-badge">VIDEO</div>
+            </div>
+        `;
+    }
+
+    // Elemento de lista
+    function renderListItem(ep, index, inPlaylist = false) {
+        const item = normalizeItem(ep);
+        return `
+            <div class="list-item" data-mediaurl="${item.mediaUrl}">
+                <span class="text-gray-500 font-bold w-4 text-center text-sm">${index+1}</span>
+                <div class="thumb" onclick="Router.navigate('${item.detailUrl}')">
+                    <img src="${item.cover}" loading="lazy">
+                    <div class="overlay-mini" onclick="event.stopPropagation(); playEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;">
+                        <img src="${ICONS.play}" class="play-icon-sm">
+                    </div>
+                </div>
+                <div style="flex:1; min-width:0;" onclick="Router.navigate('${item.detailUrl}')">
+                    <div class="font-bold text-sm truncate text-white">${item.title}</div>
+                    <div class="text-xs text-gray-500 truncate">${item.author}</div>
+                </div>
+                <button class="bg-none border-none cursor-pointer opacity-60 hover:opacity-100 transition-opacity" onclick="event.stopPropagation(); togglePlaylist(${JSON.stringify(item).replace(/"/g, '&quot;')}); return false;">
+                    <img src="${inPlaylist ? ICONS.added : ICONS.add}" class="w-5 h-5 filter invert">
+                </button>
+            </div>
+        `;
+    }
+
+    // ========== VISTA FEED ==========
+    function renderFeed() {
+        const getRandomSafe = (count, filterFn = () => true) => {
+            const filtered = DATA.filter(filterFn);
+            if (filtered.length === 0) return [];
+            const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, Math.min(count, shuffled.length));
+        };
+
+        const playlist = getPlaylist();
+        const playlistUrls = new Set(playlist.map(i => i.mediaUrl));
+
+        // Función para crear carrusel
+        function createCarousel(title, type, items, categoryContext) {
+            if (!items.length) return '';
+            const id = 'c-' + Math.random().toString(36).substr(2, 9);
+            let content = '';
+            if (type === 'double') {
+                content = `<div id="${id}" class="flex flex-col flex-wrap h-[580px] gap-x-6 gap-y-6 overflow-x-auto no-scrollbar scroll-smooth">` + 
+                          items.map(ep => renderStandardCard(ep, playlistUrls.has(ep.mediaUrl))).join('') + `</div>`;
+            } else if (type === 'list') {
+                content = `<div id="${id}" class="flex gap-8 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
+                for (let i = 0; i < items.length; i += 4) {
+                    content += `<div class="list-group">` +
+                        (items[i] ? renderListItem(items[i], i, playlistUrls.has(items[i].mediaUrl)) : '') +
+                        (items[i+1] ? renderListItem(items[i+1], i+1, playlistUrls.has(items[i+1].mediaUrl)) : '') +
+                        (items[i+2] ? renderListItem(items[i+2], i+2, playlistUrls.has(items[i+2].mediaUrl)) : '') +
+                        (items[i+3] ? renderListItem(items[i+3], i+3, playlistUrls.has(items[i+3].mediaUrl)) : '') +
+                        `</div>`;
+                }
+                content += `</div>`;
+            } else if (type === 'expand') {
+                content = `<div id="${id}" class="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + 
+                          items.map(ep => renderVideoCard(ep, playlistUrls.has(ep.mediaUrl))).join('') + `</div>`;
+            } else {
+                content = `<div id="${id}" class="flex gap-6 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + 
+                          items.map(ep => renderStandardCard(ep, playlistUrls.has(ep.mediaUrl))).join('') + `</div>`;
+            }
+
+            return `
+                <section class="carousel-wrapper relative group/section mb-12">
+                    <div class="section-header">
+                        <h2>${title}</h2>
+                        <button onclick="Router.navigate('/categoria/${categoryContext}')">Ver todo</button>
+                    </div>
+                    <div class="relative">
+                        <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
+                        ${content}
+                        <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
+                    </div>
+                </section>
+            `;
+        }
+
+        function createSeriesCarousel() {
+            const seriesMap = {};
+            DATA.forEach(ep => {
+                if (ep.series && ep.series.titulo_serie) {
+                    const key = ep.series.titulo_serie;
+                    if (!seriesMap[key]) {
+                        seriesMap[key] = { info: ep.series, episodes: [] };
+                    }
+                    seriesMap[key].episodes.push(ep);
+                }
+            });
+
+            let seriesArray = Object.values(seriesMap);
+            seriesArray = seriesArray.sort(() => Math.random() - 0.5); // aleatorio
+
+            const id = 'c-series-' + Math.random().toString(36).substr(2, 9);
+            let content = `<div id="${id}" class="flex gap-8 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
+
+            seriesArray.forEach(serie => {
+                const s = serie.info;
+                const episodes = serie.episodes.sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,4);
+                content += `<div class="list-group">`;
+                // Cabecera de la serie
+                content += `
+                    <div class="mb-4 cursor-pointer" onclick="Router.navigate('${s.url_serie}')">
+                        <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800">
+                            <img src="${s.portada_serie || episodes[0]?.cover}" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-white text-sm truncate mt-2">${s.titulo_serie}</h3>
+                        <p class="text-xs text-gray-400">ver serie</p>
+                    </div>
+                `;
+                episodes.forEach((ep, idx) => {
+                    content += renderListItem(ep, idx, playlistUrls.has(ep.mediaUrl));
+                });
+                content += `</div>`;
+            });
+
+            content += `</div>`;
+
+            return `
+                <section class="carousel-wrapper relative group/section mb-12">
+                    <div class="section-header">
+                        <h2>Series y Cursos Académicos</h2>
+                        <button class="text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-white">Ver todo</button>
+                    </div>
+                    <div class="relative">
+                        <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
+                        ${content}
+                        <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
+                    </div>
+                </section>
+            `;
+        }
+
+        let html = '';
+        html += createCarousel("Nuevos Lanzamientos", "standard", getRandomSafe(15, ep => new Date(ep.date) > new Date(Date.now() - 30*24*60*60*1000)), "Todos");
+        html += createCarousel("Series de Video", "expand", getRandomSafe(10, e => e.type === 'video'), "Cine y TV");
+        html += createCarousel("Top Semanal", "list", getRandomSafe(16), "Todos");
+        html += createCarousel("Para Estudiar Profundamente", "double", getRandomSafe(20, e => e.categories.includes("Matemáticas") || e.categories.includes("Física y Astronomía")), "Matemáticas");
+        html += createCarousel("Matemáticas", "standard", getRandomSafe(15, e => e.categories.includes("Matemáticas")), "Matemáticas");
+        html += createCarousel("Especiales en Video", "expand", getRandomSafe(10, e => e.type === 'video' && e.categories.includes("Documentales")), "Documentales");
+        html += createCarousel("Física y Astronomía", "standard", getRandomSafe(15, e => e.categories.includes("Física y Astronomía")), "Física y Astronomía");
+        html += createCarousel("Ciencias Naturales y Tecnología", "double", getRandomSafe(20, e => e.categories.some(c => ["Ciencias Naturales", "Tecnología e Informática"].includes(c))), "Otras Ciencias");
+        html += createSeriesCarousel();
+        html += createCarousel("Otras Ciencias y Disciplinas", "standard", getRandomSafe(15, e => e.categories.includes("Otras Ciencias")), "Otras Ciencias");
+
+        return html;
+    }
+
+    // ========== VISTA NOVEDADES ==========
+    function renderNovedades() {
+        const playlist = getPlaylist();
+        const playlistUrls = new Set(playlist.map(i => i.mediaUrl));
+
+        // Hero (5 más recientes)
+        const heroItems = DATA.sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,5).map(normalizeItem);
+        let heroHtml = '';
+        let indicatorsHtml = '';
+        heroItems.forEach((item, idx) => {
+            const activeClass = idx === 0 ? 'active' : '';
+            heroHtml += `
+                <div class="np-hero-slide ${activeClass}" data-index="${idx}" onclick="Router.navigate('${item.detailUrl}')">
+                    <div class="np-hero-content" onclick="event.stopPropagation();">
+                        <h1 onclick="event.stopPropagation(); Router.navigate('${item.detailUrl}')">${item.title}</h1>
+                        <div class="author">${item.author}</div>
+                        <div class="np-hero-controls">
+                            <div class="np-hero-controls-left">
+                                <button onclick="event.stopPropagation(); downloadEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')})"><img src="${item.allowDownload ? ICONS.dl : ICONS.noDl}"></button>
+                                <button onclick="event.stopPropagation(); shareEpisode('${item.title}', '${item.detailUrl}')"><img src="${ICONS.share}" style="filter: brightness(0) invert(1);"></button>
+                                <button onclick="event.stopPropagation(); togglePlaylist(${JSON.stringify(item).replace(/"/g, '&quot;')})"><img src="${playlistUrls.has(item.mediaUrl) ? ICONS.added : ICONS.add}"></button>
+                            </div>
+                            <button class="np-hero-play-btn" onclick="event.stopPropagation(); playEpisode(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                                <img src="${ICONS.play}"> Reproducir
+                            </button>
+                        </div>
+                    </div>
+                    <div class="np-hero-image">
+                        <img src="${item.coverWide || item.cover}" alt="${item.title}">
+                    </div>
+                </div>
+            `;
+            indicatorsHtml += `<span class="np-hero-indicator ${idx === 0 ? 'active' : ''}" data-index="${idx}"></span>`;
+        });
+
+        // Series destacadas (aleatorio)
+        const seriesMap = {};
+        DATA.forEach(ep => {
+            if (ep.series && ep.series.titulo_serie) {
+                const key = ep.series.titulo_serie;
+                if (!seriesMap[key]) {
+                    seriesMap[key] = { info: ep.series, episodes: [] };
+                }
+                seriesMap[key].episodes.push(ep);
+            }
+        });
+        let seriesArray = Object.values(seriesMap);
+        seriesArray = seriesArray.sort(() => Math.random() - 0.5);
+        let seriesHtml = '';
+        seriesArray.forEach(serie => {
+            const s = serie.info;
+            const episodes = serie.episodes.sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0,4);
+            seriesHtml += `<div class="np-series-group">`;
+            seriesHtml += `
+                <div class="np-series-item" style="padding-left:0;" onclick="Router.navigate('${s.url_serie}')">
+                    <div class="np-series-thumb">
+                        <img src="${s.portada_serie || episodes[0]?.cover}" loading="lazy">
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div class="np-title">${s.titulo_serie}</div>
+                        <div class="np-author">${episodes.length} episodios</div>
+                    </div>
+                </div>
+            `;
+            episodes.forEach((ep, idx) => {
+                seriesHtml += `
+                    <div class="np-series-item" data-mediaurl="${ep.mediaUrl}">
+                        <span style="color:#666; width:20px; text-align:center;">${idx+1}</span>
+                        <div class="np-series-thumb" onclick="Router.navigate('${ep.detailUrl}')">
+                            <img src="${ep.cover}" loading="lazy">
+                            <div class="np-overlay-mini" onclick="event.stopPropagation(); playEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')}); return false;">
+                                <img src="${ICONS.play}" class="np-play-icon-sm">
+                            </div>
+                        </div>
+                        <div style="flex:1; min-width:0;" onclick="Router.navigate('${ep.detailUrl}')">
+                            <div class="np-title">${ep.title}</div>
+                            <div class="np-author">${ep.author}</div>
+                        </div>
+                        <button class="bg-none border-none cursor-pointer" onclick="event.stopPropagation(); togglePlaylist(${JSON.stringify(ep).replace(/"/g, '&quot;')}); return false;">
+                            <img src="${playlistUrls.has(ep.mediaUrl) ? ICONS.added : ICONS.add}" style="width:20px; height:20px; filter: brightness(0) invert(1);">
+                        </button>
+                    </div>
+                `;
+            });
+            seriesHtml += `</div>`;
+        });
+
+        // Videos destacados
+        const videos = DATA.filter(ep => ep.type === 'video').map(normalizeItem);
+        let videosHtml = '';
+        videos.forEach(ep => {
+            videosHtml += renderVideoCard(ep, playlistUrls.has(ep.mediaUrl));
+        });
+
+        // Descubrir (grid aleatorio)
+        const shuffled = [...DATA].sort(() => 0.5 - Math.random());
+        const randomItems = shuffled.slice(0,20).map(normalizeItem);
+        let gridHtml = '';
+        randomItems.forEach(ep => {
+            gridHtml += renderStandardCard(ep, playlistUrls.has(ep.mediaUrl));
+        });
+
+        return `
+            <div id="novedades-page">
+                <div class="np-hero-carousel" id="heroCarousel">
+                    <div class="np-hero-arrow left" id="heroPrev">❮</div>
+                    <div class="np-hero-arrow right" id="heroNext">❯</div>
+                    <div id="heroSlidesContainer">${heroHtml}</div>
+                    <div class="np-hero-indicators" id="heroIndicators">${indicatorsHtml}</div>
+                </div>
+
+                <section class="np-carousel-wrapper">
+                    <div class="np-section-header">
+                        <h2>Series destacadas</h2>
+                        <button onclick="Router.navigate('/biblioteca')">Ver todo</button>
+                    </div>
+                    <div class="relative">
+                        <div class="np-nav-btn left" id="seriesLeft"><button>❮</button></div>
+                        <div id="seriesCarousel" class="np-horizontal-scroll no-scrollbar" style="gap: 32px;">${seriesHtml}</div>
+                        <div class="np-nav-btn right" id="seriesRight"><button>❯</button></div>
+                    </div>
+                </section>
+
+                <section class="np-carousel-wrapper" style="margin-top: 48px;">
+                    <div class="np-section-header">
+                        <h2>Videos destacados</h2>
+                        <button onclick="Router.navigate('/buscar?q=video')">Ver todo</button>
+                    </div>
+                    <div class="relative">
+                        <div class="np-nav-btn left" id="videosLeft"><button>❮</button></div>
+                        <div id="videosCarousel" class="np-horizontal-scroll no-scrollbar">${videosHtml}</div>
+                        <div class="np-nav-btn right" id="videosRight"><button>❯</button></div>
+                    </div>
+                </section>
+
+                <section style="margin-top: 48px;">
+                    <div class="np-section-header">
+                        <h2>Descubrir</h2>
+                        <button onclick="location.reload()">↻ Actualizar</button>
+                    </div>
+                    <div id="randomGrid" class="np-grid-container">${gridHtml}</div>
+                </section>
+            </div>
+        `;
+    }
+
+    // ========== VISTA BIBLIOTECA ==========
+    function renderBiblioteca() {
+        const likes = getLikes().map(normalizeItem);
+        const playlist = getPlaylist().map(normalizeItem);
+        const history = getHistory().map(normalizeItem);
+        const playlistUrls = new Set(playlist.map(i => i.mediaUrl));
+
+        // Likes carrusel
+        let likesHtml = '';
+        if (likes.length) {
+            likesHtml = likes.map(ep => renderStandardCard(ep, playlistUrls.has(ep.mediaUrl))).join('');
+        } else {
+            likesHtml = '<div class="ba-empty" style="text-align:center; color:#888; padding:40px;">No hay me gusta aún</div>';
+        }
+
+        // Mi lista (carrusel de grupos)
+        let playlistHtml = '';
+        if (playlist.length) {
+            for (let i = 0; i < playlist.length; i += 4) {
+                playlistHtml += '<div class="ba-list-group">';
+                for (let j = 0; j < 4 && i + j < playlist.length; j++) {
+                    playlistHtml += renderListItem(playlist[i+j], i+j, true);
+                }
+                playlistHtml += '</div>';
+            }
+        } else {
+            playlistHtml = '<div class="ba-empty" style="text-align:center; color:#888; padding:40px;">Tu lista está vacía</div>';
+        }
+
+        // Historial
+        let historyHtml = '';
+        if (history.length) {
+            historyHtml = history.reverse().map(ep => `
+                <div class="ba-history-item" style="display:flex; align-items:center; justify-content:space-between; padding:8px; border-radius:8px; cursor:pointer; transition:background 0.2s; margin-bottom:8px;" data-mediaurl="${ep.mediaUrl}">
+                    <div class="ba-info" style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;" onclick="playEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')})">
+                        <div class="ba-thumb" style="width:56px; height:56px; border-radius:6px; overflow:hidden; flex-shrink:0;">
+                            <img src="${ep.cover}" loading="lazy">
+                        </div>
+                        <div style="min-width:0;">
+                            <div class="ba-title" style="font-weight:bold; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ep.title}</div>
+                            <div class="ba-author" style="font-size:0.8rem; color:#aaa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ep.author}</div>
+                        </div>
+                    </div>
+                    <button class="ba-delete" style="background:none; border:none; padding:4px; cursor:pointer; opacity:0.7;" onclick="event.stopPropagation(); (function(){ let h = getHistory().filter(i => i.mediaUrl !== '${ep.mediaUrl}'); saveHistory(h); renderBiblioteca(); })(); return false;" title="Eliminar">
+                        <img src="${ICONS.remove}" style="width:20px; height:20px; filter: brightness(0) invert(1);">
+                    </button>
+                </div>
+            `).join('');
+        } else {
+            historyHtml = '<div class="ba-empty" style="text-align:center; color:#888; padding:40px;">No hay historial</div>';
+        }
+
+        return `
+            <div id="biblioteca-autonoma">
+                <div id="ba-sections-view">
+                    <section class="ba-carousel-wrapper">
+                        <div class="ba-section-header">
+                            <h2>Me gusta</h2>
+                            <button onclick="showLikesGrid()">Ver todo</button>
+                        </div>
+                        <div class="relative">
+                            <div class="ba-nav-btn left" id="ba-likes-left"><button>❮</button></div>
+                            <div id="ba-likes-carousel" class="ba-horizontal-scroll no-scrollbar">${likesHtml}</div>
+                            <div class="ba-nav-btn right" id="ba-likes-right"><button>❯</button></div>
+                        </div>
+                    </section>
+
+                    <section class="ba-carousel-wrapper" style="margin-top: 48px;">
+                        <div class="ba-section-header">
+                            <h2>Mi lista</h2>
+                            <button onclick="showPlaylistGrid()">Ver todo</button>
+                        </div>
+                        <div class="relative">
+                            <div class="ba-nav-btn left" id="ba-playlist-left"><button>❮</button></div>
+                            <div id="ba-playlist-carousel" class="ba-horizontal-scroll no-scrollbar" style="gap: 32px;">${playlistHtml}</div>
+                            <div class="ba-nav-btn right" id="ba-playlist-right"><button>❯</button></div>
+                        </div>
+                    </section>
+
+                    <section style="margin-top: 48px;">
+                        <div class="ba-section-header">
+                            <h2>Historial reciente</h2>
+                            <button onclick="if(confirm('¿Eliminar todo el historial?')) { saveHistory([]); renderBiblioteca(); }">Vaciar historial</button>
+                        </div>
+                        <div id="ba-history-list" class="ba-history-list" style="max-height:400px; overflow-y:auto; padding-right:8px;">${historyHtml}</div>
+                    </section>
+                </div>
+
+                <div id="ba-grid-view" style="display: none;">
+                    <div class="ba-section-header" style="margin-bottom: 16px;">
+                        <h2 id="ba-grid-title"></h2>
+                        <button class="ba-back-button" id="ba-back-to-sections" style="display:flex; align-items:center; gap:6px; background:none; border:none; color:#aaa; font-weight:bold; font-size:0.9rem; cursor:pointer;">
+                            <span style="font-size:1.5rem;">×</span> Volver
+                        </button>
+                    </div>
+                    <div id="ba-grid" class="ba-grid-container"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Funciones auxiliares para biblioteca (se definen globalmente)
+    window.showLikesGrid = function() {
+        const likes = getLikes().map(normalizeItem);
+        const playlist = getPlaylist();
+        const playlistUrls = new Set(playlist.map(i => i.mediaUrl));
+        document.getElementById('ba-sections-view').style.display = 'none';
+        document.getElementById('ba-grid-view').style.display = 'block';
+        document.getElementById('ba-grid-title').innerText = 'Mis Me Gusta';
+        document.getElementById('ba-grid').innerHTML = likes.map(ep => renderStandardCard(ep, playlistUrls.has(ep.mediaUrl))).join('');
+    };
+
+    window.showPlaylistGrid = function() {
+        const playlist = getPlaylist().map(normalizeItem);
+        document.getElementById('ba-sections-view').style.display = 'none';
+        document.getElementById('ba-grid-view').style.display = 'block';
+        document.getElementById('ba-grid-title').innerText = 'Mi Lista';
+        document.getElementById('ba-grid').innerHTML = playlist.map(ep => renderStandardCard(ep, true)).join('');
+    };
+
+    window.hideGrid = function() {
+        document.getElementById('ba-sections-view').style.display = 'block';
+        document.getElementById('ba-grid-view').style.display = 'none';
+    };
+
+    // ========== VISTA EXPLORAR (BÚSQUEDA SIN QUERY) ==========
+    function renderExplore() {
+        const categories = [
+            "Derecho", "Física y Astronomía", "Matemáticas", "Historia", "Filosofía",
+            "Economía y Finanzas", "Ciencias Sociales", "Arte y Cultura", "Literatura y Audiolibros",
+            "Cine y TV", "Documentales", "Ciencias Naturales", "Tecnología e Informática", "Otras Ciencias"
+        ];
+        let catHtml = '';
+        categories.forEach(cat => {
+            catHtml += `
+                <div class="bg-white/10 hover:bg-white/20 transition-colors rounded-xl p-4 text-center cursor-pointer" onclick="Router.navigate('/categoria/${cat}')">
+                    <h3 class="font-bold text-lg">${cat}</h3>
+                </div>
+            `;
+        });
+
+        return `
+            <div style="padding: 20px 0;">
+                <h1 class="text-3xl font-bold mb-6">Explorar categorías</h1>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    ${catHtml}
+                </div>
+                <div style="margin-top: 40px;">
+                    <h2 class="text-2xl font-bold mb-4">Recomendados para ti</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                        ${window.RECOMENDADOS.slice(0,10).map(ep => renderStandardCard(ep, getPlaylist().some(p => p.mediaUrl === ep.mediaUrl))).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ========== VISTA RESULTADOS DE BÚSQUEDA ==========
+    function renderSearchResults(query) {
+        const term = query.toLowerCase().trim();
+        const results = DATA.filter(ep =>
+            ep.title.toLowerCase().includes(term) ||
+            ep.author.toLowerCase().includes(term) ||
+            ep.categories.some(c => c.toLowerCase().includes(term)) ||
+            ep.description.toLowerCase().includes(term)
+        );
+        const playlist = getPlaylist();
+        const playlistUrls = new Set(playlist.map(i => i.mediaUrl));
+
+        if (results.length === 0) {
+            return `
+                <div style="text-align: center; padding: 60px 20px;">
+                    <h2 class="text-2xl mb-4">No encontramos resultados para "${query}"</h2>
+                    <p class="text-gray-400 mb-8">Prueba con otras palabras</p>
+                    <button onclick="Router.navigate('/buscar')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full">Volver a explorar</button>
+                </div>
+            `;
+        }
+
+        return `
+            <div>
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold">Resultados para "${query}"</h2>
+                    <button onclick="Router.navigate('/buscar')" class="text-sm text-gray-400 hover:text-white">← Volver a explorar</button>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    ${results.map(ep => renderStandardCard(ep, playlistUrls.has(ep.mediaUrl))).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    // ========== VISTA DE SERIE ==========
+    function renderSerie(episodes) {
+        const sorted = [...episodes].sort((a,b) => new Date(b.date) - new Date(a.date));
+        const series = sorted[0].series;
+        const playlist = getPlaylist();
+        const playlistUrls = new Set(playlist.map(i => i.mediaUrl));
+
+        let episodesHtml = '';
+        sorted.forEach((ep, idx) => {
+            episodesHtml += `
+                <div class="podcast-episode-card" style="display:flex; align-items:center; gap:24px; padding:24px; background:rgba(30,41,59,0.7); backdrop-filter:blur(12px); border-radius:36px; border:1px solid rgba(255,255,255,0.08); margin-bottom:16px;">
+                    <img class="podcast-episode-cover" src="${ep.cover}" style="width:120px; height:120px; border-radius:32px; object-fit:cover;" loading="lazy">
+                    <div class="podcast-episode-info" style="flex:1; min-width:0;">
+                        <h3 class="podcast-episode-title" style="font-size:1.4rem; font-weight:700; margin-bottom:6px;">${ep.title}</h3>
+                        <div class="podcast-episode-author" style="font-size:0.95rem; color:#b0c5e5; margin-bottom:8px;">
+                            ${ep.author} <span style="background:rgba(123,46,218,0.3); padding:4px 16px; border-radius:100px; font-size:0.7rem;">${ep.type === 'video' ? 'VIDEO' : 'PODCAST'}</span>
+                        </div>
+                        <div class="podcast-episode-description" style="font-size:0.95rem; color:#e2e8f0; line-height:1.6; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${ep.description || ''}</div>
+                        <div class="podcast-episode-actions" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin-top:20px;">
+                            <div style="display:flex; gap:10px;">
+                                <button class="podcast-action-btn" style="background:rgba(0,0,0,0.3); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.1); width:46px; height:46px; border-radius:18px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="event.stopPropagation(); togglePlaylist(${JSON.stringify(ep).replace(/"/g, '&quot;')}); return false;">
+                                    <img src="${playlistUrls.has(ep.mediaUrl) ? ICONS.added : ICONS.add}" style="width:24px; height:24px; filter:brightness(0) invert(1);">
+                                </button>
+                                <button class="podcast-action-btn" style="background:rgba(0,0,0,0.3); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.1); width:46px; height:46px; border-radius:18px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="event.stopPropagation(); downloadEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')}); return false;">
+                                    <img src="${ep.allowDownload ? ICONS.dl : ICONS.noDl}" style="width:24px; height:24px; filter:brightness(0) invert(1);">
+                                </button>
+                                <button class="podcast-action-btn" style="background:rgba(0,0,0,0.3); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.1); width:46px; height:46px; border-radius:18px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="event.stopPropagation(); shareEpisode('${ep.title}', '${ep.detailUrl}'); return false;">
+                                    <img src="${ICONS.share}" style="width:24px; height:24px; filter:brightness(0) invert(1);">
+                                </button>
+                            </div>
+                            <button class="podcast-play-episode-btn" style="background:#7b2eda; border:1px solid rgba(255,255,255,0.25); width:60px; height:60px; border-radius:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 10px 20px rgba(0,0,0,0.5);" onclick="event.stopPropagation(); playEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')}); return false;">
+                                <img src="${ICONS.play}" style="width:28px; height:28px; filter:brightness(0) invert(1); margin-left:3px;">
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        return `
+            <div class="podcast-widget" style="width:100%; max-width:100%; margin:0 auto; background:transparent; padding:32px 28px;">
+                <div class="podcast-header" style="position:relative; border-radius:40px; margin-bottom:48px; color:white; overflow:hidden; box-shadow:0 25px 40px -15px rgba(0,0,0,0.7); min-height:380px; display:flex; flex-direction:column; justify-content:space-between;">
+                    <div class="podcast-header-bg" style="position:absolute; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; filter:blur(20px) brightness(0.7); transform:scale(1.2); z-index:0; background-image:url('${series.portada_serie || sorted[0].cover}');"></div>
+                    <div style="position:relative; z-index:2; display:flex; align-items:flex-end; gap:30px; padding:40px 40px 20px 40px; flex:1;">
+                        <div class="podcast-thumbnail"><img src="${series.portada_serie || sorted[0].cover}" style="width:160px; height:160px; border-radius:32px; object-fit:cover;"></div>
+                        <div class="podcast-info" style="flex:1; padding-bottom:8px;">
+                            <h1 class="series-title" style="font-size:2.8rem; font-weight:800; margin-bottom:8px;">${series.titulo_serie}</h1>
+                            <p class="series-author" style="font-size:1.2rem; color:rgba(255,255,255,0.9); margin-bottom:12px;">${sorted[0].author}</p>
+                            <p class="series-description" style="font-size:1rem; line-height:1.6; color:rgba(255,255,255,0.8);">${series.descripcion_serie || ''}</p>
+                        </div>
+                    </div>
+                    <div class="podcast-control-bar" style="position:relative; z-index:2; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; padding:16px 30px 30px 30px;">
+                        <div class="podcast-left-actions" style="display:flex; align-items:center; gap:12px;">
+                            <div class="podcast-creator-avatar" style="width:60px; height:60px; border-radius:24px; background:rgba(255,255,255,0.1); padding:3px; backdrop-filter:blur(8px);"><img src="${series.portada_serie || sorted[0].cover}" style="width:100%; height:100%; border-radius:20px; object-fit:cover;"></div>
+                            <button class="podcast-icon-btn" id="podcastBtnAddMain" style="background:rgba(0,0,0,0.4); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); width:60px; height:60px; border-radius:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="togglePlaylist(${JSON.stringify(sorted[0]).replace(/"/g, '&quot;')})"><img src="${playlistUrls.has(sorted[0].mediaUrl) ? ICONS.added : ICONS.add}" style="width:28px; height:28px; filter:brightness(0) invert(1);"></button>
+                            <button class="podcast-icon-btn" id="podcastBtnDownloadMain" style="background:rgba(0,0,0,0.4); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); width:60px; height:60px; border-radius:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="downloadEpisode(${JSON.stringify(sorted[0]).replace(/"/g, '&quot;')})"><img src="${sorted[0].allowDownload ? ICONS.dl : ICONS.noDl}" style="width:28px; height:28px; filter:brightness(0) invert(1);"></button>
+                            <button class="podcast-icon-btn" id="podcastBtnShareMain" style="background:rgba(0,0,0,0.4); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); width:60px; height:60px; border-radius:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="shareEpisode('${series.titulo_serie}', '${series.url_serie}')"><img src="${ICONS.share}" style="width:28px; height:28px; filter:brightness(0) invert(1);"></button>
+                        </div>
+                        <button class="podcast-last-episode-btn" id="podcastLastEpisodePlayBtn" style="background:rgba(123,46,218,0.9); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.25); border-radius:200px; padding:8px 28px 8px 16px; display:flex; align-items:center; gap:16px; cursor:pointer;" onclick="playEpisode(${JSON.stringify(sorted[0]).replace(/"/g, '&quot;')})">
+                            <span class="podcast-play-icon-large" style="background:rgba(255,255,255,0.25); border-radius:100px; width:52px; height:52px; display:flex; align-items:center; justify-content:center;"><img src="${ICONS.play}" style="width:26px; height:26px; filter:brightness(0) invert(1);"></span>
+                            <span class="podcast-btn-text" style="text-align:left;">
+                                <span class="podcast-small-label" style="display:block; font-size:12px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.9);">ÚLTIMO EPISODIO</span>
+                                <span class="podcast-strong-title" style="font-size:18px; font-weight:700; color:white;">${sorted[0].title.substring(0,25)}${sorted[0].title.length>25?'...':''}</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+                <div class="podcast-episodes-list" style="display:flex; flex-direction:column; gap:16px; width:90%; margin:40px auto 0;">
+                    ${episodesHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    // ========== VISTA DE EPISODIO INDIVIDUAL ==========
+    function renderEpisode(ep) {
+        const series = ep.series;
+        const playlist = getPlaylist();
+        const inPlaylist = playlist.some(i => i.mediaUrl === ep.mediaUrl);
+
+        return `
+            <div class="podcast-widget" style="width:100%; max-width:100%; margin:0 auto; background:transparent; padding:32px 28px;">
+                <div class="podcast-header" style="position:relative; border-radius:40px; margin-bottom:48px; color:white; overflow:hidden; box-shadow:0 25px 40px -15px rgba(0,0,0,0.7); min-height:380px; display:flex; flex-direction:column; justify-content:space-between;">
+                    <div class="podcast-header-bg" style="position:absolute; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; filter:blur(20px) brightness(0.7); transform:scale(1.2); z-index:0; background-image:url('${ep.cover}');"></div>
+                    <div style="position:relative; z-index:2; display:flex; align-items:flex-end; gap:30px; padding:40px 40px 20px 40px; flex:1;">
+                        <div class="podcast-thumbnail"><img src="${ep.cover}" style="width:160px; height:160px; border-radius:32px; object-fit:cover;"></div>
+                        <div class="podcast-info" style="flex:1; padding-bottom:8px;">
+                            <h1 class="series-title" style="font-size:2.8rem; font-weight:800; margin-bottom:8px;">${ep.title}</h1>
+                            <p class="series-author" style="font-size:1.2rem; color:rgba(255,255,255,0.9); margin-bottom:12px;">${ep.author}</p>
+                            <p class="series-description" style="font-size:1rem; line-height:1.6; color:rgba(255,255,255,0.8);">${ep.description || ''}</p>
+                        </div>
+                    </div>
+                    <div class="podcast-control-bar" style="position:relative; z-index:2; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px; padding:16px 30px 30px 30px;">
+                        <div class="podcast-left-actions" style="display:flex; align-items:center; gap:12px;">
+                            <div class="podcast-creator-avatar" style="width:60px; height:60px; border-radius:24px; background:rgba(255,255,255,0.1); padding:3px; backdrop-filter:blur(8px);"><img src="${series?.portada_serie || ep.cover}" style="width:100%; height:100%; border-radius:20px; object-fit:cover;"></div>
+                            <button class="podcast-icon-btn" id="episodeBtnAdd" style="background:rgba(0,0,0,0.4); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); width:60px; height:60px; border-radius:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="togglePlaylist(${JSON.stringify(ep).replace(/"/g, '&quot;')})"><img src="${inPlaylist ? ICONS.added : ICONS.add}" style="width:28px; height:28px; filter:brightness(0) invert(1);"></button>
+                            <button class="podcast-icon-btn" id="episodeBtnDownload" style="background:rgba(0,0,0,0.4); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); width:60px; height:60px; border-radius:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="downloadEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')})"><img src="${ep.allowDownload ? ICONS.dl : ICONS.noDl}" style="width:28px; height:28px; filter:brightness(0) invert(1);"></button>
+                            <button class="podcast-icon-btn" id="episodeBtnShare" style="background:rgba(0,0,0,0.4); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); width:60px; height:60px; border-radius:24px; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="shareEpisode('${ep.title}', '${ep.detailUrl}')"><img src="${ICONS.share}" style="width:28px; height:28px; filter:brightness(0) invert(1);"></button>
+                        </div>
+                        <button class="podcast-last-episode-btn" id="episodePlayBtn" style="background:rgba(123,46,218,0.9); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.25); border-radius:200px; padding:8px 28px 8px 16px; display:flex; align-items:center; gap:16px; cursor:pointer;" onclick="playEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')})">
+                            <span class="podcast-play-icon-large" style="background:rgba(255,255,255,0.25); border-radius:100px; width:52px; height:52px; display:flex; align-items:center; justify-content:center;"><img src="${ICONS.play}" style="width:26px; height:26px; filter:brightness(0) invert(1);"></span>
+                            <span class="podcast-btn-text" style="text-align:left;">
+                                <span class="podcast-small-label" style="display:block; font-size:12px; font-weight:600; letter-spacing:0.8px; color:rgba(255,255,255,0.9);">REPRODUCIR</span>
+                                <span class="podcast-strong-title" style="font-size:18px; font-weight:700; color:white;">${ep.title.substring(0,25)}</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+                <div class="part-of-program" style="margin-top:3rem; padding:2rem; background:rgba(30,41,59,0.5); backdrop-filter:blur(8px); border-radius:36px; border:1px solid rgba(255,255,255,0.05);">
+                    <h3 class="text-xl font-bold mb-4">Parte del programa</h3>
+                    <div class="program-card" style="display:flex; align-items:center; gap:2rem; cursor:pointer;" onclick="Router.navigate('${series?.url_serie}')">
+                        <img src="${series?.portada_serie || ep.cover}" style="width:100px; height:100px; border-radius:24px; object-fit:cover;">
+                        <div>
+                            <h3 style="font-size:1.8rem; font-weight:700;">${series?.titulo_serie || 'Serie'}</h3>
+                            <p style="color:#aaa;">${series?.descripcion_serie || ''}</p>
+                            <p class="view-link" style="color:#7b2eda; font-weight:600; margin-top:0.5rem;">Ver más episodios →</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ========== VISTA DE INSTALACIÓN ==========
+    function renderAppPage() {
+        return `
+            <div class="app-install">
+                <h1>Instalar Balta Media</h1>
+                <p>Instala nuestra aplicación para acceder más rápido y disfrutar de contenido sin conexión (próximamente).</p>
+                <button class="install-btn" id="installAppBtn">Instalar ahora</button>
+                <p style="margin-top: 20px; font-size: 0.9rem; color: #aaa;">O visita nuestra <a href="https://www.baltaanay.org/subir" target="_blank" style="color: #3b82f6;">página de subida</a> para compartir tu contenido.</p>
+            </div>
+        `;
+    }
+
+    // ========== VISTA NO ENCONTRADA ==========
+    function renderNotFound() {
+        return `
+            <div class="not-found">
+                <h1>404</h1>
+                <p>La página que buscas no existe.</p>
+                <button onclick="Router.navigate('/')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full">Volver al inicio</button>
+            </div>
+        `;
+    }
+
+    // ========== BARRA LATERAL ==========
+    function renderSidebar() {
+        const recs = window.RECOMENDADOS.slice(0,5);
+        let recItems = '';
+        recs.forEach(ep => {
+            recItems += `
+                <div class="rec-item">
+                    <div class="rec-item-info" onclick="Router.navigate('${ep.detailUrl}')">
+                        <div class="rec-item-title">${ep.title}</div>
+                        <div class="rec-item-author">${ep.author}</div>
+                    </div>
+                    <button class="rec-play-btn" onclick="event.stopPropagation(); playEpisode(${JSON.stringify(ep).replace(/"/g, '&quot;')})">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                </div>
+            `;
+        });
+
+        return `
+            <aside class="desktop-sidebar collapsed" id="desktopSidebar">
+                <div class="sidebar-toggle" id="sidebarToggle">
+                    <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </div>
+                <div class="nav-items">
+                    <a href="/" class="nav-item" onclick="event.preventDefault(); Router.navigate('/')">
+                        <img src="https://media.baltaanay.org/web/image/798-1b947c8d/Home%20%282%29.webp" alt="Home">
+                        <span>Home</span>
+                    </a>
+                    <a href="/buscar" class="nav-item" onclick="event.preventDefault(); Router.navigate('/buscar')">
+                        <img src="https://www.baltaanay.org/web/image/986-2bf9d2bb/Search%20%282%29.webp" alt="Buscar">
+                        <span>Buscar</span>
+                    </a>
+                    <a href="/novedades" class="nav-item" onclick="event.preventDefault(); Router.navigate('/novedades')">
+                        <img src="https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp" alt="Novedades">
+                        <span>Novedades</span>
+                    </a>
+                    <a href="https://www.baltaanay.org/solicitud" class="nav-item" target="_blank">
+                        <img src="https://www.baltaanay.org/web/image/922-f3d79ca9/xhbalta-aula.png" alt="Solicitar">
+                        <span>Solicitar</span>
+                    </a>
+                    <a href="/biblioteca" class="nav-item" onclick="event.preventDefault(); Router.navigate('/biblioteca')">
+                        <img src="https://nikichitonjesus3.odoo.com/web/image/453-f4d8c1eb/user.png" alt="Biblioteca">
+                        <span>Biblioteca</span>
+                    </a>
+                </div>
+                <div class="rec-section">
+                    <div class="rec-header">
+                        <a href="/novedades" onclick="event.preventDefault(); Router.navigate('/novedades')">
+                            Recomendados
+                            <svg viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                        </a>
+                    </div>
+                    <div class="rec-list">
+                        ${recItems}
+                    </div>
+                </div>
+            </aside>
+        `;
+    }
+
+    // Inicializar barra lateral y toggle
+    function initSidebar() {
+        const container = document.getElementById('sidebar-container');
+        if (window.innerWidth > 768) {
+            container.innerHTML = renderSidebar();
+            const sidebar = document.getElementById('desktopSidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            if (toggle) {
+                toggle.addEventListener('click', () => {
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    if (isCollapsed) {
+                        sidebar.classList.remove('collapsed');
+                        sidebar.classList.add('expanded');
+                        document.body.style.marginLeft = '15%';
+                    } else {
+                        sidebar.classList.add('collapsed');
+                        sidebar.classList.remove('expanded');
+                        document.body.style.marginLeft = '70px';
+                    }
+                });
+            }
+            // Ajuste inicial del margen
+            document.body.style.marginLeft = '70px';
+        } else {
+            container.innerHTML = '';
+            document.body.style.marginLeft = '';
+        }
+    }
+
+    // Actualizar clase activa en la barra lateral
+    function updateSidebarActive() {
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.nav-item').forEach(item => {
+            const href = item.getAttribute('href');
+            if (href === currentPath || (href === '/' && currentPath === '/')) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+
+    // Botón de usuario dinámico
+    function updateUserButton() {
+        const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
+        const mobileBtn = document.getElementById('mobile-user-btn');
+        if (!mobileBtn) return;
+        if (isInstalled) {
+            mobileBtn.innerHTML = '<img src="https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp" class="w-full h-full object-cover">';
+            mobileBtn.onclick = () => window.open('https://www.baltaanay.org/subir', '_blank');
+        } else {
+            mobileBtn.innerHTML = '<img src="https://nikichitonjesus3.odoo.com/web/image/453-f4d8c1eb/user.png" class="w-full h-full object-cover">';
+            mobileBtn.onclick = () => Router.navigate('/app');
+        }
+    }
+
+    // ========== INICIALIZACIÓN ==========
+    window.addEventListener('DOMContentLoaded', () => {
+        Router.init();
+        initSidebar();
+        updateUserButton();
+        window.addEventListener('resize', initSidebar);
+    });
+
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
+        });
+    }
+</script>
 </body>
 </html>
