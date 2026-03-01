@@ -5,7 +5,7 @@ const episodiosDisponibles = [
         slug: 'la-excepcion',
         date: '2025-11-28',
         type: 'audio',
-        mediaUrl: 'https://cdn.gty.org/podcast/20260228.mp3?x-source=website&x-type=download',
+        mediaUrl: 'https://asuntos-externos.odoo.com/web/content/703?unique=b9b29f195c5e1478a2d1ff590260a7e4327f7dc6&download=true',
         coverUrl: 'https://s3-us-west-2.amazonaws.com/anchor-generated-image-bank/staging/podcast_uploaded_nologo400/44500417/44500417-1759018829686-8b0dde55850ed.jpg',
         title: 'Sermon',
         description: 'La excepción en el proceso de administración de Justicia',
