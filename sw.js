@@ -1,35 +1,32 @@
-// sw.js
-const CACHE_NAME = 'podcast-offline-v1';
+const CACHE_NAME = 'streamhub-v1';
 const urlsToCache = [
-    '/',
-    '/index.html',
-    '/404.html',
-    '/app.js',
-    '/db.js',
-    '/manifest.json'
-    // si hay CSS separado, agregarlo
+  '/',
+  '/index.html',
+  '/episodios.js',
+  '/offline.html',
+  '/manifest.json',
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap'
 ];
 
 self.addEventListener('install', event => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-    );
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+  );
 });
 
 self.addEventListener('fetch', event => {
-    // No interceptar peticiones a URLs externas (audio, imágenes) porque ya las manejamos con IndexedDB
-    if (event.request.url.startsWith('http') && !event.request.url.includes(self.location.origin)) {
-        return;
-    }
-    event.respondWith(
-        caches.match(event.request).then(response => response || fetch(event.request))
-    );
-});
-
-self.addEventListener('activate', event => {
-    event.waitUntil(
-        caches.keys().then(keys => 
-            Promise.all(keys.map(key => key !== CACHE_NAME && caches.delete(key)))
-        )
-    );
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        if (response) return response;
+        return fetch(event.request)
+          .catch(() => {
+            if (event.request.mode === 'navigate') {
+              return caches.match('/offline.html');
+            }
+          });
+      })
+  );
 });
