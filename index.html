@@ -16,11 +16,11 @@
     <meta name="theme-color" content="#050505">
     <style>
         /* ========== ESTILOS GLOBALES ========== */
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #050505; color: white; overflow-x: hidden; margin: 0; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #050505; color: white; overflow-x: hidden; margin: 0; transition: margin-left 0.3s ease; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* ========== BOTONES DE NAVEGACIÓN CARRUSEL ========== */
+        /* ========== BOTONES DE CARRUSEL ========== */
         .nav-btn {
             position: absolute; top: 0; bottom: 0; z-index: 40; width: 60px;
             display: none; align-items: center; justify-content: center;
@@ -36,15 +36,14 @@
         .nav-btn button:hover { background: rgba(255,255,255,0.3); transform: scale(1.1); }
         @media (min-width: 1024px) { .carousel-wrapper:hover .nav-btn { display: flex; } }
 
-        /* ========== TARJETAS Y ELEMENTOS DEL FEED ========== */
+        /* ========== TARJETAS DEL FEED ========== */
         .card-std { min-width: 200px; width: 200px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; position: relative; }
         .card-video {
             height: 220px; width: 220px; flex-shrink: 0; position: relative; overflow: hidden; border-radius: 12px;
             transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer;
         }
         @media (min-width: 1024px) { .card-video:hover { width: 390px; } }
-
-        /* ========== ITEMS DE LISTA (TOP SEMANAL, SERIES) ========== */
+        .card-list-group { min-width: 340px; display: flex; flex-direction: column; gap: 16px; }
         .list-item {
             display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-radius: 8px;
             transition: background 0.2s; cursor: pointer; width: 100%;
@@ -79,23 +78,38 @@
         .desktop-search-results {
             position: absolute; top: 100%; left: 0; right: 0;
             background: rgba(10, 10, 10, 0.98); backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; margin-top: 8px; padding: 12px;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; margin-top: 8px; padding: 12px;
             max-height: 400px; overflow-y: auto; z-index: 1000; display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .desktop-search-results.active { display: block; }
+        .desktop-search-results.active { display: block; animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         .search-result-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
         .search-result-item:hover { background: rgba(255,255,255,0.1); }
 
-        /* ========== MÓVIL: BOTÓN PLAY Y BÚSQUEDA ========== */
+        /* ========== BOTÓN PLAY MÓVIL ========== */
         .mobile-play-button {
             position: absolute; bottom: 8px; right: 8px; width: 32px; height: 32px;
-            background: rgba(0, 0, 0, 0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center;
             z-index: 30; pointer-events: auto;
         }
         .mobile-play-button img { width: 16px; height: 16px; filter: brightness(0) invert(1); }
         @media (min-width: 1024px) { .mobile-play-button { display: none; } }
 
-        /* ========== BARRA LATERAL ESCRITORIO ========== */
+        /* ========== BÚSQUEDA MÓVIL ========== */
+        #mobileSearchBar {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+            transform: translateY(-100%); transition: transform 0.3s ease;
+        }
+        #mobileSearchBar.open { transform: translateY(0); }
+        .search-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 9998;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .search-overlay.active { opacity: 1; visibility: visible; }
+
+        /* ========== BARRA LATERAL (ESCRITORIO) ========== */
         .desktop-sidebar {
             position: fixed; top: 0; left: 0; height: 100vh; background: #0F0F0F; color: #fff;
             z-index: 900; transition: width 0.3s ease; overflow-x: hidden; overflow-y: auto;
@@ -168,1087 +182,44 @@
         .alert-btn-secondary { background: transparent; color: white; border: 1px solid #444; }
         .alert-btn-secondary:hover { background: #333; }
 
-        /* ========== ESTILOS PARA LA PÁGINA DE BÚSQUEDA (extraídos de tu código) ========== */
-        .history-tag {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            padding: 8px 16px; border-radius: 999px; font-size: 0.9rem; color: #a1a1aa;
-            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
-        }
-        .history-tag:hover { background: rgba(255,255,255,0.15); color: white; border-color: white; }
-        .cat-card {
-            aspect-ratio: 16/9; border-radius: 20px; overflow: hidden; position: relative; cursor: pointer;
-            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-        }
-        .cat-card:hover { transform: scale(1.03); z-index: 10; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
-        .cat-title { 
-            position: absolute; bottom: 20px; left: 20px; font-weight: 800; font-size: 1.8rem; 
-            z-index: 10; text-shadow: 0 3px 15px rgba(0,0,0,0.8); 
-        }
-        .cat-icon { 
-            position: absolute; top: -15px; right: -15px; width: 100px; height: 100px; 
-            opacity: 0.25; transform: rotate(15deg); filter: brightness(0) invert(1); object-fit: contain;
-        }
-        .cat-derecho { background: linear-gradient(135deg, #1e40af 0%, #3730a3 100%); }
-        .cat-matematicas { background: linear-gradient(135deg, #0f766e 0%, #115e59 100%); }
-        .cat-fisica { background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); }
-        .cat-historia { background: linear-gradient(135deg, #92400e 0%, #78350f 100%); }
-        .cat-filosofia { background: linear-gradient(135deg, #059669 0%, #047857 100%); }
-        .cat-economia { background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); }
-        .cat-sociales { background: linear-gradient(135deg, #be185d 0%, #9d174d 100%); }
-        .cat-arte { background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%); }
-        .cat-literatura { background: linear-gradient(135deg, #7e22ce 0%, #6b21a8 100%); }
-        .cat-cine { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); }
-        .cat-documentales { background: linear-gradient(135deg, #059669 0%, #047857 100%); }
-        .cat-naturales { background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); }
-        .cat-tecnologia { background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%); }
-        .cat-otras { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }
+        /* ========== VISTA DE DETALLE ========== */
+        #detail-view { margin-top: 2rem; min-height: 60vh; }
+        .detail-404 { text-align: center; padding: 4rem 2rem; color: #aaa; }
 
-        .top-result-card { 
-            position: relative; height: 100%; border-radius: 24px; overflow: hidden; 
-            background: #18181b; display: flex; flex-direction: column; transition: transform 0.2s; 
-            border: 1px solid rgba(255,255,255,0.05); 
-        }
-        .top-result-card:hover { transform: scale(1.01); border-color: rgba(255,255,255,0.2); }
-        .top-result-img { width: 100%; height: 55%; object-fit: cover; }
-        
-        .list-row { 
-            display: flex; align-items: center; gap: 16px; padding: 12px; border-radius: 16px; 
-            cursor: pointer; transition: background 0.2s; border: 1px solid transparent; 
-        }
-        .list-row:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
-        .list-row-img { 
-            width: 72px; height: 72px; border-radius: 12px; object-fit: cover; 
-            flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
-        }
+        /* ========== GRID VIEW ========== */
+        .grid-card { width: 100%; display: flex; flex-direction: column; gap: 10px; cursor: pointer; position: relative; }
+        .grid-card .aspect-square { border-radius: 12px; overflow: hidden; position: relative; }
 
-        .carousel-wrapper { position: relative; }
-        .carousel-btn {
-            position: absolute; top: 0; bottom: 0; z-index: 30; width: 60px; display: none; 
-            align-items: center; justify-content: center; transition: opacity 0.3s; cursor: pointer;
-        }
-        .carousel-btn.left { left: 0; background: linear-gradient(to right, #050505 20%, transparent 100%); }
-        .carousel-btn.right { right: 0; background: linear-gradient(to left, #050505 20%, transparent 100%); }
-        .carousel-arrow {
-            width: 44px; height: 44px; background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            border: 1px solid rgba(255,255,255,0.1); transition: transform 0.2s, background 0.2s;
-        }
-        .carousel-btn:hover .carousel-arrow { background: white; color: black; transform: scale(1.1); }
-        @media (min-width: 1024px) { .carousel-wrapper:hover .carousel-btn { display: flex; } }
-        @media (max-width: 1023px) { .carousel-btn { display: none !important; } }
-
-        .series-card-container { 
-            width: 200px; flex-shrink: 0; cursor: pointer; transition: transform 0.3s; padding-bottom: 10px; 
-        }
-        .series-card-container:hover { transform: translateY(-5px); }
-        .series-cover { 
-            width: 100%; aspect-ratio: 1/1; border-radius: 20px; overflow: hidden; position: relative; 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.05); 
-            transition: border-color 0.3s;
-        }
-        .series-card-container:hover .series-cover { border-color: #3b82f6; }
-        
-        .suggestions-box {
-            position: absolute; top: 100%; left: 0; right: 0; background: rgba(24, 24, 27, 0.98); 
-            backdrop-filter: blur(20px); border: 1px solid rgba(63, 63, 70, 0.5); 
-            border-radius: 0 0 20px 20px; z-index: 50; display: none; overflow: hidden; margin-top: 2px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        }
-        .suggestion-item { 
-            padding: 14px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px; 
-            color: #d4d4d8; border-bottom: 1px solid rgba(39, 39, 42, 0.5); transition: all 0.2s;
-        }
-        .suggestion-item:hover { background: rgba(63, 63, 70, 0.5); color: white; }
-        .suggestion-item:last-child { border-bottom: none; }
-
-        .overlay-actions {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; 
-            align-items: center; justify-content: center; gap: 16px; opacity: 0; 
-            transition: opacity 0.3s ease; backdrop-filter: blur(2px);
-            z-index: 25;
-        }
-        .hover-trigger:hover .overlay-actions { opacity: 1; }
-        .action-btn { 
-            width: 44px; height: 44px; transition: transform 0.2s; cursor: pointer; 
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); 
-        }
-        .action-btn:hover { transform: scale(1.15); }
-        
-        .type-badge {
-            position: absolute; top: 12px; left: 12px; background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: bold;
-            text-transform: uppercase; z-index: 20;
-        }
-        .type-badge.video { background: rgba(220, 38, 38, 0.7); color: white; }
-        .type-badge.audio { background: rgba(37, 99, 235, 0.7); color: white; }
-
-        /* ========== ESTILOS PARA BIBLIOTECA Y NOVEDADES (extendidos) ========== */
-        .ba-card-std { min-width: 200px; width: 200px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; position: relative; }
-        .ba-card-std .ba-img-container { width: 100%; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; background: #1a1a1a; position: relative; }
-        .ba-card-std img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
-        .ba-card-std:hover img { transform: scale(1.05); }
-        .ba-overlay-full {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px);
-            opacity: 0; transition: opacity 0.3s; display: flex; align-items: center; justify-content: center; gap: 14px; border-radius: 12px;
-        }
-        .ba-card-std:hover .ba-overlay-full { opacity: 1; }
-        .ba-mobile-play {
-            position: absolute; bottom: 8px; right: 8px; width: 40px; height: 40px;
-            background: rgba(0,0,0,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            z-index: 30; border: 1px solid rgba(255,255,255,0.2);
-        }
-        .ba-mobile-play img { width: 20px !important; height: 20px !important; filter: brightness(0) invert(1); }
-        @media (min-width: 1024px) { .ba-mobile-play { display: none; } }
-        .ba-action-icon { width: 36px !important; height: 36px !important; cursor: pointer; transition: transform 0.2s; filter: brightness(0) invert(1); }
-        .ba-action-icon:hover { transform: scale(1.1); }
-        .ba-play-icon-lg { width: 56px !important; height: 56px !important; cursor: pointer; transition: transform 0.2s; filter: brightness(0) invert(1); }
-        .ba-play-icon-lg:hover { transform: scale(1.1); }
-        .ba-play-icon-sm { width: 20px !important; height: 20px !important; filter: brightness(0) invert(1); }
-        .ba-carousel-wrapper { position: relative; }
-        .ba-nav-btn {
-            position: absolute; top: 0; bottom: 0; z-index: 40; width: 60px; display: none; align-items: center; justify-content: center; transition: opacity 0.3s;
-        }
-        .ba-nav-btn.left { left: 0; background: linear-gradient(to right, #050505 0%, transparent 100%); }
-        .ba-nav-btn.right { right: 0; background: linear-gradient(to left, #050505 0%, transparent 100%); }
-        .ba-nav-btn button {
-            background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 50%; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 20px; cursor: pointer; transition: transform 0.2s, background 0.2s;
-        }
-        .ba-nav-btn button:hover { background: rgba(255,255,255,0.3); transform: scale(1.1); }
-        .ba-carousel-wrapper:hover .ba-nav-btn { display: flex; }
-        .ba-horizontal-scroll { display: flex; gap: 24px; overflow-x: auto; scroll-behavior: smooth; padding: 8px 4px; }
-        .ba-list-group { min-width: 340px; display: flex; flex-direction: column; gap: 16px; }
-        .ba-list-item { display: flex; align-items: center; gap: 12px; padding: 6px; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
-        .ba-list-item:hover { background: rgba(255,255,255,0.08); }
-        .ba-list-item .ba-thumb { width: 56px; height: 56px; border-radius: 6px; overflow: hidden; position: relative; flex-shrink: 0; }
-        .ba-list-item .ba-thumb img { width: 100%; height: 100%; object-fit: cover; }
-        .ba-overlay-mini { position: absolute; inset: 0; background: rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
-        .ba-list-item:hover .ba-overlay-mini { opacity: 1; }
-        .ba-add-btn { background: none; border: none; padding: 0; cursor: pointer; opacity: 0.6; transition: opacity 0.2s; }
-        .ba-add-btn:hover { opacity: 1; }
-        .ba-add-btn img { width: 20px !important; height: 20px !important; display: block; filter: brightness(0) invert(1); }
-        .ba-history-list { max-height: 400px; overflow-y: auto; padding-right: 8px; }
-        .ba-history-item { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 8px; cursor: pointer; transition: background 0.2s; margin-bottom: 8px; }
-        .ba-history-item:hover { background: rgba(255,255,255,0.08); }
-        .ba-history-item .ba-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-        .ba-history-item .ba-thumb { width: 56px; height: 56px; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
-        .ba-history-item .ba-thumb img { width: 100%; height: 100%; object-fit: cover; }
-        .ba-history-item .ba-title { font-weight: bold; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ba-history-item .ba-author { font-size: 0.8rem; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ba-history-item .ba-delete { background: none; border: none; padding: 4px; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
-        .ba-history-item .ba-delete:hover { opacity: 1; }
-        .ba-history-item .ba-delete img { width: 20px !important; height: 20px !important; display: block; filter: brightness(0) invert(1); }
-        .ba-section-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; padding: 0 4px; }
-        .ba-section-header h2 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.02em; transition: color 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ba-section-header h2:hover { color: #3b82f6; }
-        .ba-section-header button { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #aaa; background: none; border: none; cursor: pointer; transition: color 0.2s; white-space: nowrap; }
-        .ba-section-header button:hover { color: white; }
-        .ba-grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 24px; }
-        @media (min-width: 768px) { .ba-grid-container { grid-template-columns: repeat(3, 1fr); } }
-        @media (min-width: 1024px) { .ba-grid-container { grid-template-columns: repeat(4, 1fr); } }
-        @media (min-width: 1280px) { .ba-grid-container { grid-template-columns: repeat(5, 1fr); } }
-        .ba-back-button { display: flex; align-items: center; gap: 6px; background: none; border: none; color: #aaa; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: color 0.2s; }
-        .ba-back-button:hover { color: white; }
-        .ba-back-button span { font-size: 1.5rem; line-height: 1; }
-        .ba-empty { text-align: center; color: #888; padding: 40px 0; font-size: 1rem; }
-
-        /* ========== ESTILOS PARA NOVEDADES (hero, etc.) ========== */
-        .np-hero-carousel {
-            position: relative; width: 100%; height: 500px; border-radius: 24px; overflow: hidden; margin-bottom: 40px; background: #111;
-        }
-        .np-hero-slide {
-            position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s ease-in-out; display: flex; align-items: center; justify-content: flex-end; padding: 0; cursor: pointer;
-        }
-        .np-hero-slide.active { opacity: 1; z-index: 2; }
-        .np-hero-image { width: 60%; height: 100%; position: relative; overflow: hidden; pointer-events: none; }
-        .np-hero-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .np-hero-image::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 70%; height: 100%;
-            background: linear-gradient(to right, #050505 0%, rgba(5,5,5,0.8) 50%, transparent 100%);
-            z-index: 2; pointer-events: none;
-        }
-        .np-hero-content {
-            position: absolute; left: 0; top: 0; width: 50%; height: 100%; display: flex; flex-direction: column;
-            justify-content: center; padding: 60px; z-index: 3; color: white; background: transparent; pointer-events: none;
-        }
-        .np-hero-content h1, .np-hero-content .author, .np-hero-controls { pointer-events: auto; }
-        .np-hero-content h1 { font-size: 3.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 16px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-        .np-hero-content .author { font-size: 1.2rem; color: #ccc; margin-bottom: 24px; }
-        .np-hero-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 30px; }
-        .np-hero-controls-left { display: flex; gap: 20px; }
-        .np-hero-controls-left button {
-            background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 48px; height: 48px;
-            display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s, transform 0.2s;
-        }
-        .np-hero-controls-left button:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); }
-        .np-hero-controls-left button img { width: 24px; height: 24px; filter: brightness(0) invert(1); }
-        .np-hero-play-btn {
-            background: #3b82f6; border: none; border-radius: 40px; padding: 12px 32px; font-weight: bold; font-size: 1.1rem;
-            color: white; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: background 0.2s, transform 0.2s;
-        }
-        .np-hero-play-btn:hover { background: #2563eb; transform: scale(1.05); }
-        .np-hero-play-btn img { width: 24px; height: 24px; filter: brightness(0) invert(1); }
-        .np-hero-indicators {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 4;
-        }
-        .np-hero-indicator { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: background 0.2s, transform 0.2s; }
-        .np-hero-indicator.active { background: white; transform: scale(1.2); }
-        .np-hero-arrow {
-            position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; background: rgba(0,0,0,0.5);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px;
-            cursor: pointer; z-index: 5; transition: background 0.2s; border: 1px solid rgba(255,255,255,0.2);
-        }
-        .np-hero-arrow:hover { background: rgba(0,0,0,0.8); }
-        .np-hero-arrow.left { left: 20px; }
-        .np-hero-arrow.right { right: 20px; }
-        @media (max-width: 768px) {
-            .np-hero-slide { justify-content: flex-end; }
-            .np-hero-image { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-            .np-hero-image::before { background: linear-gradient(to top, #050505 0%, rgba(5,5,5,0.8) 40%, transparent 100%); width: 100%; height: 70%; top: auto; bottom: 0; left: 0; }
-            .np-hero-content { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px; background: transparent; pointer-events: auto; z-index: 3; height: auto; top: auto; justify-content: flex-end; }
-            .np-hero-content h1 { font-size: 2rem; margin-bottom: 8px; }
-            .np-hero-content .author { font-size: 1rem; margin-bottom: 16px; }
-            .np-hero-controls { flex-direction: row; justify-content: space-between; align-items: center; margin-top: 10px; }
-            .np-hero-controls-left { display: none; }
-            .np-hero-play-btn { width: 100%; justify-content: center; }
-        }
-        .np-carousel-wrapper { position: relative; margin-top: 48px; }
-        .np-section-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; padding: 0 4px; }
-        .np-section-header h2 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; transition: color 0.2s; }
-        .np-section-header h2:hover { color: #3b82f6; }
-        .np-section-header button { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #aaa; background: none; border: none; cursor: pointer; transition: color 0.2s; }
-        .np-section-header button:hover { color: white; }
-        .np-nav-btn { position: absolute; top: 0; bottom: 0; z-index: 40; width: 60px; display: none; align-items: center; justify-content: center; transition: opacity 0.3s; }
-        .np-nav-btn.left { left: 0; background: linear-gradient(to right, #050505 0%, transparent 100%); }
-        .np-nav-btn.right { right: 0; background: linear-gradient(to left, #050505 0%, transparent 100%); }
-        .np-nav-btn button { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 50%; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 20px; cursor: pointer; transition: transform 0.2s, background 0.2s; }
-        .np-nav-btn button:hover { background: rgba(255,255,255,0.3); transform: scale(1.1); }
-        .np-carousel-wrapper:hover .np-nav-btn { display: flex; }
-        .np-horizontal-scroll { display: flex; gap: 24px; overflow-x: auto; scroll-behavior: smooth; padding: 8px 4px; }
-        .np-card-std { min-width: 200px; width: 200px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; position: relative; }
-        .np-card-std .np-img-container { width: 100%; aspect-ratio: 1/1; border-radius: 12px; overflow: hidden; background: #1a1a1a; position: relative; }
-        .np-card-std img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
-        .np-card-std:hover img { transform: scale(1.05); }
-        .np-overlay-full { position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); opacity: 0; transition: opacity 0.3s; display: flex; align-items: center; justify-content: center; gap: 12px; border-radius: 12px; }
-        .np-card-std:hover .np-overlay-full { opacity: 1; }
-        .np-overlay-full img.np-icon-add, .np-overlay-full img.np-icon-dl { width: 36px; height: 36px; cursor: pointer; transition: transform 0.2s; filter: brightness(0) invert(1); }
-        .np-overlay-full img.np-icon-play { width: 56px; height: 56px; cursor: pointer; transition: transform 0.2s; filter: brightness(0) invert(1); }
-        .np-overlay-full img:hover { transform: scale(1.1); }
-        .np-mobile-play {
-            position: absolute; bottom: 8px; right: 8px; width: 40px; height: 40px; background: rgba(0,0,0,0.7);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 30; border: 1px solid rgba(255,255,255,0.2);
-        }
-        .np-mobile-play img { width: 20px; height: 20px; filter: brightness(0) invert(1); }
-        @media (min-width: 1024px) { .np-mobile-play { display: none; } }
-        .np-card-video {
-            height: 220px; width: 220px; flex-shrink: 0; position: relative; overflow: hidden; border-radius: 12px;
-            transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer;
-        }
-        @media (min-width: 1024px) { .np-card-video:hover { width: 390px; } }
-        .np-card-video img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
-        .np-card-video .img-default { z-index: 1; }
-        .np-card-video .img-wide { opacity: 0; z-index: 2; }
-        .np-card-video:hover .img-wide { opacity: 1; }
-        .np-card-video .np-overlay-full { z-index: 3; gap: 12px; }
-        .np-card-video .np-mobile-play { z-index: 4; }
-        .np-video-badge { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; z-index: 5; }
-        .np-grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 24px; }
-        @media (min-width: 768px) { .np-grid-container { grid-template-columns: repeat(3, 1fr); } }
-        @media (min-width: 1024px) { .np-grid-container { grid-template-columns: repeat(4, 1fr); } }
-        @media (min-width: 1280px) { .np-grid-container { grid-template-columns: repeat(5, 1fr); } }
-        .np-series-group { min-width: 340px; display: flex; flex-direction: column; gap: 16px; }
-        .np-series-item { display: flex; align-items: center; gap: 12px; padding: 6px; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
-        .np-series-item:hover { background: rgba(255,255,255,0.08); }
-        .np-series-thumb { width: 56px; height: 56px; border-radius: 6px; overflow: hidden; position: relative; flex-shrink: 0; }
-        .np-series-thumb img { width: 100%; height: 100%; object-fit: cover; }
-        .np-overlay-mini { position: absolute; inset: 0; background: rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
-        .np-series-item:hover .np-overlay-mini { opacity: 1; }
-        .np-play-icon-sm { width: 20px; height: 20px; filter: brightness(0) invert(1); }
-        .np-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
-        .np-author { font-size: 0.8rem; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* ========== REPRODUCTOR UNIVERSAL (se posiciona automáticamente) ========== */
+        .player-universal { transition: left 0.3s ease, width 0.3s ease !important; }
     </style>
 </head>
 <body>
-
-<!-- ========== BARRA LATERAL ESCRITORIO (se renderiza por JS) ========== -->
-<div id="desktopSidebar" class="desktop-sidebar collapsed"></div>
-
-<!-- ========== BARRA INFERIOR MÓVIL ========== -->
-<div class="mobile-bottom-bar">
-    <a href="/" data-route="/">
-        <img src="https://media.baltaanay.org/web/image/798-1b947c8d/Home%20%282%29.webp" alt="Inicio">
-        <span>Inicio</span>
-    </a>
-    <a href="/buscar" data-route="/buscar">
-        <img src="https://www.baltaanay.org/web/image/986-2bf9d2bb/Search%20%282%29.webp" alt="Buscar">
-        <span>Buscar</span>
-    </a>
-    <a href="/biblioteca" data-route="/biblioteca">
-        <img src="https://nikichitonjesus3.odoo.com/web/image/453-f4d8c1eb/user.png" alt="Biblioteca">
-        <span>Biblioteca</span>
-    </a>
-    <a href="/novedades" data-route="/novedades">
-        <img src="https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp" alt="Novedades">
-        <span>Novedades</span>
-    </a>
-</div>
-
-<!-- ========== CABECERA SUPERIOR (se oculta en /buscar) ========== -->
-<header id="top-header" class="sticky top-0 z-50 bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
-    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between" id="header-container">
-        <a href="/" class="flex items-center gap-2" onclick="return handleRootClick(event)">
-            <img src="https://media.baltaanay.org/web/image/885-f3d79ca9/xhbalta-aula.png" alt="Balta Media" class="w-6 h-6 sm:w-8 sm:h-8 rounded-lg object-cover">
-            <span class="text-lg sm:text-xl font-bold text-white">Media</span>
-        </a>
-
-        <div class="hidden lg:flex items-center gap-4 desktop-search-container">
-            <div class="relative">
-                <input type="text" id="desktopSearch" placeholder="Buscar episodios, series..." class="bg-white/10 border border-white/20 rounded-full px-4 py-2 pl-10 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="handleDesktopSearchInput(this.value)" onkeypress="if(event.key === 'Enter') handleDesktopSearchEnter(event)" onfocus="showDesktopSearchResults()">
-                <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4">
-            </div>
-            <div class="desktop-search-results" id="desktopSearchResults">
-                <div id="desktopSearchResultsContent"></div>
-            </div>
-            <!-- Icono de usuario dinámico (instalar/subir) -->
-            <a href="#" id="userActionLink" class="text-sm font-bold text-gray-400 hover:text-white flex items-center gap-1">
-                <img id="userActionIcon" src="https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp" alt="Acción" class="w-5 h-5">
-                <span id="userActionText">Subir</span>
-            </a>
-        </div>
-
-        <div class="flex items-center gap-3 sm:gap-4">
-            <button onclick="toggleMobileSearch()" class="lg:hidden text-gray-400 hover:text-white">
-                <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="w-5 h-5">
-            </button>
-            <a href="/novedades" class="relative text-gray-400 hover:text-white">
-                <img src="https://media.baltaanay.org/web/image/796-aee658de/Explore.png" alt="Notificaciones" class="w-5 h-5">
-                <span class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </a>
-            <a href="#" id="mobileUserActionLink" class="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full overflow-hidden">
-                <img id="mobileUserActionIcon" src="https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp" alt="Usuario" class="w-full h-full object-cover">
-            </a>
-        </div>
-    </div>
-</header>
-
-<!-- ========== BARRA DE BÚSQUEDA MÓVIL DESPLEGABLE ========== -->
-<div id="mobileSearchBar" class="lg:hidden bg-[#050505] p-4 border-b border-white/10" style="position: fixed; top: 0; left: 0; right: 0; z-index: 9999; transform: translateY(-100%); transition: transform 0.3s ease;">
-    <div class="flex items-center gap-3">
-        <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="w-5 h-5">
-        <input type="text" id="mobileSearchInput" placeholder="Buscar episodios, series..." class="flex-1 bg-transparent border-none text-white text-base sm:text-lg focus:outline-none placeholder-gray-500" oninput="handleMobileSearchInput(this.value)" onkeypress="if(event.key === 'Enter') handleMobileSearchEnter(event)">
-        <button onclick="handleMobileSearchButton()" class="text-white px-3 py-1 bg-blue-600 rounded-md text-sm">Buscar</button>
-        <button onclick="toggleMobileSearch()" class="text-white text-xl">×</button>
-    </div>
-    <div id="mobileSearchResults" class="mt-4 max-h-[60vh] overflow-y-auto"></div>
-</div>
-<div class="search-overlay" id="searchOverlay" onclick="closeSearch()" style="position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index:9998; opacity:0; visibility:hidden; transition:0.3s;"></div>
-
-<!-- ========== FILTROS DE CATEGORÍAS ========== -->
-<div class="sticky top-0 z-40 bg-[#050505]/95 backdrop-blur-xl border-b border-white/5" id="category-filters">
-    <div class="py-2 sm:py-3 overflow-x-auto no-scrollbar">
-        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 flex items-center gap-2 sm:gap-3" id="category-pills"></div>
-    </div>
-</div>
-
-<!-- ========== CONTENEDOR PRINCIPAL DE VISTAS ========== -->
-<main class="max-w-[1600px] mx-auto px-4 sm:px-6 mt-4 min-h-screen" id="main-content">
-    <!-- Vistas del SPA -->
-    <div id="feed-view" class="space-y-8 sm:space-y-12 transition-opacity duration-300"></div>
-    <div id="grid-view" class="hidden transition-opacity duration-300">
-        <div class="flex items-center justify-between mb-6 sm:mb-8 mt-4 sm:mt-6">
-            <h2 id="grid-title" class="text-xl sm:text-2xl font-bold">Resultados</h2>
-            <button onclick="showFeed()" class="text-sm font-bold text-gray-400 hover:text-white flex items-center gap-1">
-                <span class="text-xl">×</span> Cerrar búsqueda
-            </button>
-        </div>
-        <div id="results-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6"></div>
-        <div id="empty-state" class="hidden py-8 sm:py-10 text-center">
-            <p class="text-gray-400 text-base sm:text-lg mb-6 sm:mb-8" id="empty-msg">No encontramos nada...</p>
-            <h3 class="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Quizás te interese esto:</h3>
-            <div id="recommendations-grid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6"></div>
-        </div>
-    </div>
-    <div id="detail-view" class="hidden transition-opacity duration-300"></div>
-
-    <!-- Nuevas vistas -->
-    <div id="novedades-page" class="hidden" style="font-family: 'Plus Jakarta Sans', sans-serif; background: #050505; color: white; max-width: 1600px; margin: 0 auto; padding: 20px 24px;"></div>
-    <div id="biblioteca-autonoma" class="hidden" style="font-family: 'Plus Jakarta Sans', sans-serif; background: #050505; color: white; max-width: 1600px; margin: 0 auto; padding: 20px 24px;"></div>
-    <div id="search-page" class="hidden" style="font-family: 'Plus Jakarta Sans', sans-serif; background: #050505; color: white; max-width: 1600px; margin: 0 auto; padding: 0;"></div>
-    <div id="app-page" class="hidden" style="font-family: 'Plus Jakarta Sans', sans-serif; background: #050505; color: white; max-width: 1600px; margin: 0 auto; padding: 40px 24px; text-align: center;"></div>
-</main>
-
-<!-- ========== MODAL PERSONALIZADO ========== -->
-<div class="custom-alert" id="customAlert">
-    <div class="alert-content">
-        <div class="alert-title" id="alertTitle">Error</div>
-        <div class="alert-message" id="alertMessage">Mensaje de error</div>
-        <div class="alert-buttons">
-            <button class="alert-btn alert-btn-secondary" onclick="closeAlert()">Cerrar</button>
-            <button class="alert-btn alert-btn-primary" id="alertActionBtn" onclick="handleAlertAction()">Reportar problema</button>
-        </div>
-    </div>
-</div>
-
-<!-- ========== SCRIPTS ========== -->
-<script src="episodios.js"></script>
-<script>
-// ==================== CONFIGURACIÓN GLOBAL ====================
-const ICONS = {
-    play: 'https://marca1.odoo.com/web/image/508-f876320c/play.svg',
-    add: 'https://marca1.odoo.com/web/image/509-c555b4ef/a%C3%B1adir%20a.svg',
-    added: 'https://nikichitonjesus.odoo.com/web/image/1112-d141b3eb/a%C3%B1adido.png',
-    dl: 'https://marca1.odoo.com/web/image/510-7a9035c1/descargar.svg',
-    noDl: 'https://nikichitonjesus.odoo.com/web/image/1051-622a3db3/no-desc.webp',
-    remove: 'https://nikichitonjesus.odoo.com/web/image/811-8a809533/remove.png',
-    share: 'https://marca1.odoo.com/web/image/511-3d2d2e2c/compartir.svg'
-};
-
-const CATEGORIES = [
-    "Todos",
-    "Derecho",
-    "Física y Astronomía",
-    "Matemáticas",
-    "Historia",
-    "Filosofía",
-    "Economía y Finanzas",
-    "Ciencias Sociales",
-    "Arte y Cultura",
-    "Literatura y Audiolibros",
-    "Cine y TV",
-    "Documentales",
-    "Ciencias Naturales",
-    "Tecnología e Informática",
-    "Otras Ciencias"
-];
-
-// Procesar episodios (desde episodios.js)
-const DATA = (window.processEpisodes ? window.processEpisodes() : []).map((ep, index) => ({
-    ...ep,
-    id: ep.id || index,
-    cover: ep.cover || ep.coverUrl,
-    coverWide: ep.coverWide || ep.coverUrl2 || ep.coverUrl
-}));
-
-// Playlist global
-const playlistKey = 'streamhub_userPlaylist';
-let userPlaylist = JSON.parse(localStorage.getItem(playlistKey)) || [];
-
-// Historial de reproducciones (para biblioteca)
-const historyKey = 'streamhub_history';
-let userHistory = JSON.parse(localStorage.getItem(historyKey)) || [];
-
-// Likes (para biblioteca)
-const likesKey = 'streamhub_likes';
-let userLikes = JSON.parse(localStorage.getItem(likesKey)) || [];
-
-// ==================== FUNCIONES DE PLAYLIST ====================
-function isInPlaylist(mediaUrl) {
-    return userPlaylist.some(item => item.mediaUrl === mediaUrl);
-}
-
-function savePlaylist() {
-    localStorage.setItem(playlistKey, JSON.stringify(userPlaylist));
-}
-
-function addToUserPlaylist(episodeData) {
-    if (!episodeData || !episodeData.mediaUrl) return false;
-    const exists = userPlaylist.some(item => item.mediaUrl === episodeData.mediaUrl);
-    if (!exists) {
-        const playlistItem = {
-            mediaUrl: episodeData.mediaUrl,
-            mediaType: episodeData.type || episodeData.mediaType || 'audio',
-            coverUrlContainer: episodeData.cover || episodeData.coverUrlContainer || episodeData.coverUrl,
-            coverUrlInfo: episodeData.cover || episodeData.coverUrlInfo || episodeData.coverUrl,
-            title: episodeData.title,
-            detailUrl: episodeData.detailUrl || '#',
-            author: episodeData.author || 'Desconocido',
-            next: [],
-            text: episodeData.description || '',
-            allowDownload: episodeData.allowDownload !== undefined ? episodeData.allowDownload : true
-        };
-        userPlaylist.push(playlistItem);
-        savePlaylist();
-        updateAllAddButtons(episodeData.mediaUrl);
-        return true;
-    }
-    return false;
-}
-
-function removeFromUserPlaylist(mediaUrl) {
-    userPlaylist = userPlaylist.filter(item => item.mediaUrl !== mediaUrl);
-    savePlaylist();
-    updateAllAddButtons(mediaUrl);
-}
-
-function togglePlaylist(episodeData) {
-    if (isInPlaylist(episodeData.mediaUrl)) {
-        removeFromUserPlaylist(episodeData.mediaUrl);
-    } else {
-        addToUserPlaylist(episodeData);
-    }
-}
-
-// Actualizar todos los botones de añadir que correspondan a una mediaUrl
-function updateAllAddButtons(mediaUrl) {
-    const isAdded = isInPlaylist(mediaUrl);
-    const newIcon = isAdded ? ICONS.added : ICONS.add;
-    document.querySelectorAll(`[data-mediaurl="${mediaUrl}"]`).forEach(el => {
-        if (el.tagName === 'IMG') {
-            el.src = newIcon;
-            el.dataset.added = isAdded;
-        } else {
-            const img = el.querySelector('img');
-            if (img && (img.src.includes(ICONS.add) || img.src.includes(ICONS.added))) {
-                img.src = newIcon;
-                img.dataset.added = isAdded;
-            }
-            el.dataset.added = isAdded;
-        }
-    });
-}
-
-// ==================== HISTORIAL ====================
-function addToHistory(episodeData) {
-    if (!episodeData || !episodeData.mediaUrl) return;
-    userHistory = userHistory.filter(item => item.mediaUrl !== episodeData.mediaUrl);
-    userHistory.unshift(episodeData);
-    if (userHistory.length > 50) userHistory.pop();
-    localStorage.setItem(historyKey, JSON.stringify(userHistory));
-}
-
-// ==================== LIKES ====================
-function toggleLike(episodeData) {
-    const exists = userLikes.some(item => item.mediaUrl === episodeData.mediaUrl);
-    if (exists) {
-        userLikes = userLikes.filter(item => item.mediaUrl !== episodeData.mediaUrl);
-    } else {
-        userLikes.push(episodeData);
-    }
-    localStorage.setItem(likesKey, JSON.stringify(userLikes));
-}
-
-// ==================== MODAL PERSONALIZADO ====================
-let alertActionCallback = null;
-function showAlert(title, message, actionText = 'Reportar problema', actionUrl = 'https://www.baltaanay.org/contactus/') {
-    document.getElementById('alertTitle').innerText = title;
-    document.getElementById('alertMessage').innerText = message;
-    document.getElementById('alertActionBtn').innerText = actionText;
-    alertActionCallback = () => { window.open(actionUrl, '_blank'); };
-    document.getElementById('customAlert').classList.add('active');
-}
-function closeAlert() {
-    document.getElementById('customAlert').classList.remove('active');
-}
-function handleAlertAction() {
-    if (alertActionCallback) alertActionCallback();
-    closeAlert();
-}
-
-// ==================== REPRODUCTOR UNIFICADO ====================
-function playEpisode(ep, list = []) {
-    if (!ep) return;
-    // Añadir al historial
-    addToHistory({
-        mediaUrl: ep.mediaUrl,
-        type: ep.type,
-        cover: ep.cover,
-        title: ep.title,
-        detailUrl: ep.detailUrl,
-        author: ep.author,
-        description: ep.description,
-        allowDownload: ep.allowDownload
-    });
-
-    if (typeof window.playEpisodeExpanded === 'function') {
-        try {
-            window.playEpisodeExpanded(
-                ep.mediaUrl,
-                ep.type || 'audio',
-                ep.cover || ep.coverUrl,
-                ep.coverWide || ep.cover || ep.coverUrl,
-                ep.title,
-                ep.detailUrl,
-                ep.author,
-                list,
-                ep.description || '',
-                ep.allowDownload !== false
-            );
-        } catch (e) {
-            showAlert('Error de reproducción', `El episodio "${ep.title}" no está disponible.`, 'Reportar problema');
-        }
-    } else {
-        // Fallback: abrir en nueva pestaña
-        window.open(ep.mediaUrl, '_blank');
-    }
-}
-
-// ==================== DESCARGA ====================
-function downloadEpisode(ep) {
-    if (!ep) return;
-    if (ep.allowDownload === false) {
-        showAlert('Descarga no disponible', `El episodio "${ep.title}" no permite descarga.`, 'Solicitar', 'https://www.baltaanay.org/contactus/');
-        return;
-    }
-    const ext = ep.type === 'video' ? 'mp4' : 'mp3';
-    const filename = `${ep.title.replace(/[^a-z0-9]/gi, '_').substring(0, 50)}.${ext}`;
-    try {
-        const a = document.createElement('a');
-        a.href = ep.mediaUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        // Si falla por CORS, abrir en nueva pestaña
-        setTimeout(() => {
-            if (!a.href.startsWith('blob:')) {
-                window.open(ep.mediaUrl, '_blank');
-            }
-        }, 1000);
-    } catch (error) {
-        window.open(ep.mediaUrl, '_blank');
-    }
-}
-
-// ==================== DETECCIÓN DE INSTALACIÓN (PWA) ====================
-function isAppInstalled() {
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-}
-
-function updateUserIcons() {
-    const isMobile = window.innerWidth < 768;
-    const installed = isAppInstalled();
-    // Desktop siempre muestra subir
-    if (!isMobile) {
-        document.getElementById('userActionLink').href = 'https://www.baltaanay.org/subir';
-        document.getElementById('userActionIcon').src = 'https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp';
-        document.getElementById('userActionText').innerText = 'Subir';
-        document.getElementById('mobileUserActionLink').href = 'https://www.baltaanay.org/subir';
-        document.getElementById('mobileUserActionIcon').src = 'https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp';
-    } else {
-        if (installed) {
-            document.getElementById('mobileUserActionLink').href = 'https://www.baltaanay.org/subir';
-            document.getElementById('mobileUserActionIcon').src = 'https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp';
-            document.getElementById('userActionLink').href = 'https://www.baltaanay.org/subir';
-            document.getElementById('userActionIcon').src = 'https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp';
-            document.getElementById('userActionText').innerText = 'Subir';
-        } else {
-            document.getElementById('mobileUserActionLink').href = '/app';
-            document.getElementById('mobileUserActionIcon').src = 'https://nikichitonjesus.odoo.com/web/image/1051-622a3db3/no-desc.webp';
-            document.getElementById('userActionLink').href = '/app';
-            document.getElementById('userActionIcon').src = 'https://nikichitonjesus.odoo.com/web/image/1051-622a3db3/no-desc.webp';
-            document.getElementById('userActionText').innerText = 'Instalar';
-        }
-    }
-}
-
-// ==================== ROUTER SPA ====================
-const Router = {
-    init() {
-        document.addEventListener('click', (e) => {
-            const link = e.target.closest('a');
-            if (!link) return;
-            const href = link.getAttribute('href');
-            if (!href) return;
-            if (href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
-            e.preventDefault();
-            this.navigate(href);
-        });
-        window.addEventListener('popstate', () => {
-            this.renderPath(window.location.pathname + window.location.search);
-        });
-        this.renderPath(window.location.pathname + window.location.search);
-    },
-
-    navigate(path) {
-        history.pushState({}, '', path);
-        this.renderPath(path);
-        document.querySelectorAll('.mobile-bottom-bar a').forEach(a => {
-            a.classList.toggle('active', a.getAttribute('href') === path);
-        });
-    },
-
-    renderPath(fullPath) {
-        const [path, query] = fullPath.split('?');
-        const params = new URLSearchParams(query);
-
-        // Ocultar todas las vistas
-        document.getElementById('feed-view').classList.add('hidden');
-        document.getElementById('grid-view').classList.add('hidden');
-        document.getElementById('detail-view').classList.add('hidden');
-        document.getElementById('novedades-page').classList.add('hidden');
-        document.getElementById('biblioteca-autonoma').classList.add('hidden');
-        document.getElementById('search-page').classList.add('hidden');
-        document.getElementById('app-page').classList.add('hidden');
-
-        // Mostrar/ocultar cabecera superior y filtros
-        const header = document.getElementById('top-header');
-        const categoryFilters = document.getElementById('category-filters');
-        if (path === '/buscar' || path.startsWith('/buscar?')) {
-            header.style.display = 'none';
-            categoryFilters.style.display = 'none';
-        } else {
-            header.style.display = 'block';
-            categoryFilters.style.display = 'block';
-        }
-
-        // Ruta raíz
-        if (path === '/' || path === '') {
-            document.getElementById('feed-view').classList.remove('hidden');
-            document.title = 'Balta Media';
-            return;
-        }
-
-        // Novedades
-        if (path === '/novedades') {
-            document.getElementById('novedades-page').classList.remove('hidden');
-            document.title = 'Novedades | Balta Media';
-            if (window.novedades && window.novedades.init) window.novedades.init();
-            return;
-        }
-
-        // Biblioteca
-        if (path === '/biblioteca') {
-            document.getElementById('biblioteca-autonoma').classList.remove('hidden');
-            document.title = 'Mi biblioteca | Balta Media';
-            if (window.baLibrary && window.baLibrary.init) window.baLibrary.init();
-            return;
-        }
-
-        // App (instalación)
-        if (path === '/app') {
-            document.getElementById('app-page').classList.remove('hidden');
-            document.title = 'Instalar App | Balta Media';
-            renderAppPage();
-            return;
-        }
-
-        // Búsqueda (con o sin query)
-        if (path === '/buscar') {
-            document.getElementById('search-page').classList.remove('hidden');
-            document.title = 'Buscar | Balta Media';
-            if (window.StreamHubSearch) {
-                if (params.has('q')) {
-                    window.StreamHubSearch.executeSearch(params.get('q'));
-                } else {
-                    window.StreamHubSearch.goHome();
-                }
-            }
-            return;
-        }
-
-        // Categoría
-        if (path.startsWith('/categoria/')) {
-            const cat = decodeURIComponent(path.replace('/categoria/', ''));
-            document.getElementById('search-page').classList.remove('hidden');
-            document.title = `${cat} | Balta Media`;
-            if (window.StreamHubSearch) {
-                window.StreamHubSearch.openCategoryByName(cat);
-            }
-            return;
-        }
-
-        // Serie (buscamos por url_serie)
-        const seriesEpisodes = DATA.filter(ep => ep.series && ep.series.url_serie === path);
-        if (seriesEpisodes.length > 0) {
-            document.getElementById('detail-view').classList.remove('hidden');
-            document.title = `${seriesEpisodes[0].series.titulo_serie} | Balta Media`;
-            renderSeriesWidget(seriesEpisodes);
-            return;
-        }
-
-        // Episodio (detailUrl)
-        const episode = DATA.find(ep => ep.detailUrl === path);
-        if (episode) {
-            document.getElementById('detail-view').classList.remove('hidden');
-            document.title = `${episode.title} | Balta Media`;
-            renderEpisodeWidget(episode);
-            return;
-        }
-
-        // 404
-        document.title = 'Página no encontrada | Balta Media';
-        document.getElementById('detail-view').classList.remove('hidden');
-        document.getElementById('detail-view').innerHTML = `
-            <div class="detail-404">
-                <h2 class="text-3xl sm:text-4xl font-bold mb-4">404</h2>
-                <p class="text-lg sm:text-xl">Este contenido no está disponible</p>
-            </div>
-        `;
-    }
-};
-
-// ==================== FUNCIONES DEL FEED (originales) ====================
-function renderCategoryPills(activeCat = 'Todos') {
-    const container = document.getElementById('category-pills');
-    if (!container) return;
-    container.innerHTML = '';
-    CATEGORIES.forEach(cat => {
-        const isActive = cat === activeCat;
-        const btn = document.createElement('button');
-        btn.className = `whitespace-nowrap px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs font-bold transition-all ${isActive ? 'bg-white text-black' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`;
-        btn.innerText = cat;
-        btn.onclick = () => filterByCategory(cat);
-        container.appendChild(btn);
-    });
-}
-
-function filterByCategory(cat) {
-    renderCategoryPills(cat);
-    if (cat === 'Todos') { 
-        Router.navigate('/');
-        return; 
-    }
-    Router.navigate('/categoria/' + encodeURIComponent(cat));
-}
-
-function showFeed() { 
-    Router.navigate('/');
-}
-
-function handleRootClick(event) {
-    event.preventDefault();
-    Router.navigate('/');
-    return false;
-}
-
-// Funciones de creación de tarjetas (necesarias para el feed)
-function createStandardCard(ep) {
-    const isInPlaylistItem = isInPlaylist(ep.mediaUrl);
-    const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
-    const dlIcon = ep.allowDownload ? ICONS.dl : ICONS.noDl;
-    return `<div class="card-std group" data-mediaurl="${ep.mediaUrl}">
-        <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800" onclick="goToDetail('${ep.detailUrl}')">
-            <img src="${ep.cover}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-            <div class="overlay-full">
-                <img src="${addIcon}" class="action-icon" onclick="handleAdd(event, ${ep.id}); return false;" 
-                     data-episode-id="${ep.id}" data-mediaurl="${ep.mediaUrl}" data-added="${isInPlaylistItem}">
-                <img src="${ICONS.play}" class="play-icon-lg" onclick="handlePlay(event, ${ep.id}); return false;" data-mediaurl="${ep.mediaUrl}">
-                <img src="${dlIcon}" class="action-icon" onclick="handleDl(event, ${ep.id}); return false;" 
-                     title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}" data-mediaurl="${ep.mediaUrl}">
-            </div>
-            <div class="mobile-play-button" onclick="handlePlay(event, ${ep.id}); return false;">
-                <img src="${ICONS.play}" alt="Play">
-            </div>
-        </div>
-        <div onclick="goToDetail('${ep.detailUrl}')">
-            <h3 class="font-bold text-white text-sm truncate">${ep.title}</h3>
-            <p class="text-xs text-gray-400 mt-1 truncate">${ep.author}</p>
-        </div>
-    </div>`;
-}
-
-function createVideoExpand(ep) {
-    const isInPlaylistItem = isInPlaylist(ep.mediaUrl);
-    const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
-    const dlIcon = ep.allowDownload ? ICONS.dl : ICONS.noDl;
-    const hasCover2 = ep.coverWide && ep.coverWide !== ep.cover;
-    return `<div class="card-video group" data-mediaurl="${ep.mediaUrl}">
-        <img src="${ep.cover}" class="absolute inset-0 w-full h-full object-cover z-10 group-hover:opacity-0 transition-opacity duration-300">
-        ${hasCover2 ? `<img src="${ep.coverWide}" class="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300">` : ''}
-        <div class="overlay-full z-20">
-            <img src="${addIcon}" class="action-icon" onclick="handleAdd(event, ${ep.id}); return false;" 
-                 data-episode-id="${ep.id}" data-mediaurl="${ep.mediaUrl}" data-added="${isInPlaylistItem}">
-            <img src="${ICONS.play}" class="play-icon-lg" onclick="handlePlay(event, ${ep.id}); return false;" data-mediaurl="${ep.mediaUrl}">
-            <img src="${dlIcon}" class="action-icon" onclick="handleDl(event, ${ep.id}); return false;" 
-                 title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}" data-mediaurl="${ep.mediaUrl}">
-        </div>
-        <div class="mobile-play-button z-30" onclick="handlePlay(event, ${ep.id}); return false;">
-            <img src="${ICONS.play}" alt="Play">
-        </div>
-        <div class="absolute bottom-2 left-2 z-20 bg-black/60 px-2 py-0.5 rounded text-[10px] font-bold">VIDEO</div>
-    </div>`;
-}
-
-function createListItem(ep, idx) {
-    const isInPlaylistItem = isInPlaylist(ep.mediaUrl);
-    const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
-    return `<div class="list-item group" data-mediaurl="${ep.mediaUrl}">
-        <span class="text-gray-500 font-bold w-4 text-center text-sm flex-shrink-0">${idx + 1}</span>
-        <div class="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 rounded overflow-hidden" onclick="goToDetail('${ep.detailUrl}')">
-            <img src="${ep.cover}" class="w-full h-full object-cover">
-            <div class="overlay-mini" onclick="handlePlay(event, ${ep.id}); return false;"><img src="${ICONS.play}" class="play-icon-sm"></div>
-        </div>
-        <div class="item-content" onclick="goToDetail('${ep.detailUrl}')">
-            <h4 class="font-bold text-sm truncate text-white">${ep.title}</h4>
-            <p class="text-xs text-gray-500 truncate">${ep.author}</p>
-        </div>
-        <div class="item-actions">
-            <button class="lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onclick="handleAdd(event, ${ep.id}); return false;">
-                <img src="${addIcon}" alt="Agregar" class="w-5 h-5" data-mediaurl="${ep.mediaUrl}" data-added="${isInPlaylistItem}">
-            </button>
-            <div class="lg:hidden mobile-play-button" style="position: static; width: 32px; height: 32px;" onclick="handlePlay(event, ${ep.id}); return false;">
-                <img src="${ICONS.play}" alt="Play" class="w-4 h-4">
-            </div>
-        </div>
-    </div>`;
-}
-
-function createCarousel(title, type, items, categoryContext) {
-    if (!items || items.length === 0) return '';
-    const id = 'c-' + Math.random().toString(36).substr(2, 9);
-    let content = '';
-    if (type === 'double') {
-        content = `<div id="${id}" class="flex flex-col flex-wrap h-[580px] gap-x-6 gap-y-6 overflow-x-auto no-scrollbar scroll-smooth">` + items.map(ep => createStandardCard(ep)).join('') + `</div>`;
-    } else if (type === 'list') {
-        content = `<div id="${id}" class="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
-        items.forEach((ep, idx) => {
-            content += `<div class="flex-shrink-0 w-[300px] sm:w-[340px]">${createListItem(ep, idx)}</div>`;
-        });
-        content += `</div>`;
-    } else if (type === 'expand') {
-        content = `<div id="${id}" class="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + items.map(ep => createVideoExpand(ep)).join('') + `</div>`;
-    } else {
-        content = `<div id="${id}" class="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + items.map(ep => createStandardCard(ep)).join('') + `</div>`;
-    }
-    return `<section class="carousel-wrapper relative group/section mb-8 sm:mb-12">
-        <div class="flex items-end justify-between mb-3 sm:mb-5 px-1">
-            <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white hover:text-blue-500 transition-colors">${title}</h2>
-            <button onclick="filterByCategory('${categoryContext}')" class="text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-white">Ver todo</button>
-        </div>
-        <div class="relative">
-            <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
-            ${content}
-            <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
-        </div>
-    </section>`;
-}
-
-function createSeriesCarousel() {
-    const id = 'c-series-' + Math.random().toString(36).substr(2, 9);
-    const seriesGroups = {};
-    DATA.forEach(ep => {
-        if (ep.series && ep.series.titulo_serie) {
-            const serieKey = ep.series.titulo_serie;
-            if (!seriesGroups[serieKey]) {
-                seriesGroups[serieKey] = { episodes: [], seriesInfo: ep.series };
-            }
-            seriesGroups[serieKey].episodes.push(ep);
-        }
-    });
-    const seriesArray = Object.values(seriesGroups);
-    if (seriesArray.length === 0) return '';
-    // Aleatorio
-    const shuffledSeries = seriesArray.sort(() => Math.random() - 0.5);
-    let content = `<div id="${id}" class="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
-    shuffledSeries.forEach(serie => {
-        const s = serie.seriesInfo;
-        const episodes = serie.episodes.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 4);
-        content += `<div class="flex-shrink-0 w-[300px] sm:w-[340px]">`;
-        content += `<div class="mb-4 cursor-pointer" onclick="goToDetail('${s.url_serie}')">
-            <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800">
-                <img src="${s.portada_serie}" class="w-full h-full object-cover">
-            </div>
-            <h3 class="font-bold text-white text-sm truncate mt-2">${s.titulo_serie}</h3>
-            <p class="text-xs text-gray-400">ver serie</p>
-        </div>`;
-        episodes.forEach((ep, i) => {
-            content += createListItem(ep, i);
-        });
-        content += `</div>`;
-    });
-    content += `</div>`;
-    return `<section class="carousel-wrapper relative group/section mb-8 sm:mb-12">
-        <div class="flex items-end justify-between mb-3 sm:mb-5 px-1">
-            <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white hover:text-blue-500 transition-colors">Series y Cursos Académicos</h2>
-            <button class="text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-white">Ver todo</button>
-        </div>
-        <div class="relative">
-            <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
-            ${content}
-            <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
-        </div>
-    </section>`;
-}
-
-function initFeed() {
-    console.log('Inicializando feed...');
-    if (!DATA || DATA.length === 0) {
-        document.getElementById('feed-view').innerHTML = '<div class="text-center py-20"><p class="text-gray-400 text-lg">No hay contenido disponible en este momento.</p></div>';
-        return;
-    }
-    renderCategoryPills();
-    const feed = document.getElementById('feed-view');
-    if (!feed) return;
-    const getRandomSafe = (count, filterFn = () => true) => {
-        const filtered = DATA.filter(filterFn);
-        if (filtered.length === 0) return [];
-        const shuffled = [...filtered].sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, Math.min(count, shuffled.length));
-    };
-    feed.innerHTML = '';
-    feed.innerHTML += createCarousel("Nuevos Lanzamientos", "standard", getRandomSafe(15, ep => new Date(ep.date) > new Date(Date.now() - 30*24*60*60*1000)), "Todos");
-    feed.innerHTML += createCarousel("Series de Video", "expand", getRandomSafe(10, e => e.type === 'video'), "Cine y TV");
-    feed.innerHTML += createCarousel("Top Semanal", "list", getRandomSafe(16), "Todos");
-    feed.innerHTML += createCarousel("Para Estudiar Profundamente", "double", getRandomSafe(20, e => e.categories.includes("Matemáticas") || e.categories.includes("Física y Astronomía")), "Matemáticas");
-    feed.innerHTML += createCarousel("Matemáticas", "standard", getRandomSafe(15, e => e.categories.includes("Matemáticas")), "Matemáticas");
-    feed.innerHTML += createCarousel("Especiales en Video", "expand", getRandomSafe(10, e => e.type === 'video' && e.categories.includes("Documentales")), "Documentales");
-    feed.innerHTML += createCarousel("Física y Astronomía", "standard", getRandomSafe(15, e => e.categories.includes("Física y Astronomía")), "Física y Astronomía");
-    feed.innerHTML += createCarousel("Ciencias Naturales y Tecnología", "double", getRandomSafe(20, e => e.categories.some(c => ["Ciencias Naturales", "Tecnología e Informática"].includes(c))), "Otras Ciencias");
-    feed.innerHTML += createSeriesCarousel();
-    feed.innerHTML += createCarousel("Otras Ciencias y Disciplinas", "standard", getRandomSafe(15, e => e.categories.includes("Otras Ciencias") || e.categories.some(c => ["Ciencias Naturales", "Tecnología e Informática"].includes(c))), "Otras Ciencias");
-}
-
-// ==================== HANDLERS (PLAY, ADD, DL) ====================
-function handlePlay(e, id) {
-    e.stopPropagation();
-    e.preventDefault();
-    const ep = DATA.find(x => x.id == id);
-    if (ep) playEpisode(ep);
-    return false;
-}
-
-function handleAdd(e, id) {
-    e.stopPropagation();
-    e.preventDefault();
-    const ep = DATA.find(x => x.id == id);
-    if (ep) togglePlaylist(ep);
-    // Feedback visual rápido
-    const button = e.target.closest('img') || e.target;
-    button.style.transform = 'scale(1.2)';
-    setTimeout(() => button.style.transform = 'scale(1)', 200);
-    return false;
-}
-
-function handleDl(e, id) {
-    e.stopPropagation();
-    e.preventDefault();
-    const ep = DATA.find(x => x.id == id);
-    if (ep) downloadEpisode(ep);
-    return false;
-}
-
-function goToDetail(url) {
-    if (url && url !== '#') Router.navigate(url);
-}
-
-// ==================== BARRA LATERAL ESCRITORIO ====================
-function renderSidebar() {
-    const sidebar = document.getElementById('desktopSidebar');
-    if (!sidebar) return;
-    sidebar.innerHTML = `
+    <!-- ========== BARRA LATERAL (ESCRITORIO) ========== -->
+    <aside id="desktopSidebar" class="desktop-sidebar collapsed">
         <div class="sidebar-toggle" id="sidebarToggle">
             <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
         </div>
         <div class="nav-items">
-            <a href="/" class="nav-item" title="Home">
-                <img src="https://media.baltaanay.org/web/image/798-1b947c8d/Home%20%282%29.webp" alt="Home" loading="lazy">
-                <span>Home</span>
+            <a href="/" class="nav-item" title="Inicio">
+                <img src="https://media.baltaanay.org/web/image/798-1b947c8d/Home%20%282%29.webp" alt="Inicio" loading="lazy">
+                <span>Inicio</span>
             </a>
             <a href="/buscar" class="nav-item" title="Buscar">
                 <img src="https://www.baltaanay.org/web/image/986-2bf9d2bb/Search%20%282%29.webp" alt="Buscar" loading="lazy">
                 <span>Buscar</span>
             </a>
-            <a href="/novedades" class="nav-item" title="Cargar">
+            <a href="/novedades" class="nav-item" title="Novedades">
                 <img src="https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp" alt="Novedades" loading="lazy">
                 <span>Novedades</span>
             </a>
-            <a href="https://www.baltaanay.org/solicitud" class="nav-item" title="Solicitar">
-                <img src="https://www.baltaanay.org/web/image/922-f3d79ca9/xhbalta-aula.png" alt="Solicitar" loading="lazy">
-                <span>Solicitar</span>
-            </a>
-            <a href="/biblioteca" class="nav-item" title="Usuario">
+            <a href="/biblioteca" class="nav-item" title="Biblioteca">
                 <img src="https://nikichitonjesus3.odoo.com/web/image/453-f4d8c1eb/user.png" alt="Biblioteca" loading="lazy">
                 <span>Biblioteca</span>
+            </a>
+            <a href="/app" class="nav-item" title="App">
+                <img src="https://nikichitonjesus.odoo.com/web/image/1051-622a3db3/no-desc.webp" alt="App" loading="lazy">
+                <span>App</span>
             </a>
         </div>
         <div class="rec-section">
@@ -1258,259 +229,1058 @@ function renderSidebar() {
                     <svg viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
                 </a>
             </div>
-            <div class="rec-list" id="recList"></div>
+            <div class="rec-list" id="sidebarRecList"></div>
         </div>
-    `;
-    populateRecommendations();
-    initSidebarToggle();
-    setActiveNav();
-}
+    </aside>
 
-function populateRecommendations() {
-    const container = document.getElementById('recList');
-    if (!container) return;
-    let episodes = [];
-    try {
-        episodes = window.RECOMENDADOS || [];
-    } catch (e) {
-        episodes = [];
-    }
-    if (!episodes.length) {
-        container.innerHTML = '<div style="color:#aaa; padding:8px;">No hay recomendados</div>';
-        return;
-    }
-    container.innerHTML = '';
-    episodes.slice(0, 4).forEach(ep => {
-        const title = ep.title || 'Sin título';
-        const author = ep.author || (ep.series && ep.series.titulo_serie) || 'Desconocido';
-        const item = document.createElement('div');
-        item.className = 'rec-item';
-        item.innerHTML = `
-            <div class="rec-item-info">
-                <div class="rec-item-title">${title}</div>
-                <div class="rec-item-author">${author}</div>
+    <!-- ========== BARRA INFERIOR MÓVIL ========== -->
+    <div class="mobile-bottom-bar">
+        <a href="/" data-route="/">
+            <img src="https://media.baltaanay.org/web/image/798-1b947c8d/Home%20%282%29.webp" alt="Inicio">
+            <span>Inicio</span>
+        </a>
+        <a href="/buscar" data-route="/buscar">
+            <img src="https://www.baltaanay.org/web/image/986-2bf9d2bb/Search%20%282%29.webp" alt="Buscar">
+            <span>Buscar</span>
+        </a>
+        <a href="/biblioteca" data-route="/biblioteca">
+            <img src="https://nikichitonjesus3.odoo.com/web/image/453-f4d8c1eb/user.png" alt="Biblioteca">
+            <span>Biblioteca</span>
+        </a>
+        <a href="/novedades" data-route="/novedades">
+            <img src="https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp" alt="Novedades">
+            <span>Novedades</span>
+        </a>
+    </div>
+
+    <!-- ========== CABECERA SUPERIOR ========== -->
+    <header id="top-header" class="sticky top-0 z-50 bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between" id="header-container">
+            <a href="/" class="flex items-center gap-2" id="logo-link">
+                <img src="https://media.baltaanay.org/web/image/885-f3d79ca9/xhbalta-aula.png" alt="Balta Media" class="w-6 h-6 sm:w-8 sm:h-8 rounded-lg object-cover">
+                <span class="text-lg sm:text-xl font-bold text-white">Media</span>
+            </a>
+
+            <!-- Buscador desktop -->
+            <div class="hidden lg:flex items-center gap-4 desktop-search-container">
+                <div class="relative">
+                    <input type="text" id="desktopSearch" placeholder="Buscar episodios, series..." class="bg-white/10 border border-white/20 rounded-full px-4 py-2 pl-10 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="handleDesktopSearchInput(this.value)" onkeypress="if(event.key === 'Enter') handleDesktopSearchEnter(event)" onfocus="showDesktopSearchResults()">
+                    <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4">
+                </div>
+                <div class="desktop-search-results" id="desktopSearchResults">
+                    <div id="desktopSearchResultsContent"></div>
+                </div>
+                <!-- Enlace de usuario dinámico (instalar/subir) -->
+                <a href="#" id="userActionLink" class="text-sm font-bold text-gray-400 hover:text-white flex items-center gap-1">
+                    <img id="userActionIcon" src="https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp" alt="Acción" class="w-5 h-5">
+                    <span id="userActionText">Subir</span>
+                </a>
             </div>
-            <button class="rec-play-btn" data-episode='${JSON.stringify(ep).replace(/'/g, "&#39;")}'>
-                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </button>
-        `;
-        const btn = item.querySelector('.rec-play-btn');
-        btn.addEventListener('click', (e) => {
+
+            <!-- Iconos móvil -->
+            <div class="flex items-center gap-3 sm:gap-4">
+                <button onclick="toggleMobileSearch()" class="lg:hidden text-gray-400 hover:text-white">
+                    <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="w-5 h-5">
+                </button>
+                <a href="/novedades" class="relative text-gray-400 hover:text-white">
+                    <img src="https://media.baltaanay.org/web/image/796-aee658de/Explore.png" alt="Notificaciones" class="w-5 h-5">
+                    <span class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                </a>
+                <a href="#" id="mobileUserActionLink" class="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full overflow-hidden">
+                    <img id="mobileUserActionIcon" src="https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp" alt="Usuario" class="w-full h-full object-cover">
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========== BARRA DE BÚSQUEDA MÓVIL DESPLEGABLE ========== -->
+    <div id="mobileSearchBar" class="lg:hidden bg-[#050505] p-4 border-b border-white/10">
+        <div class="flex items-center gap-3">
+            <img src="https://media.baltaanay.org/web/image/793-902e5b33/Search%20%282%29.png" alt="Buscar" class="w-5 h-5">
+            <input type="text" id="mobileSearchInput" placeholder="Buscar episodios, series..." class="flex-1 bg-transparent border-none text-white text-base sm:text-lg focus:outline-none placeholder-gray-500" oninput="handleMobileSearchInput(this.value)" onkeypress="if(event.key === 'Enter') handleMobileSearchEnter(event)">
+            <button onclick="handleMobileSearchButton()" class="text-white px-3 py-1 bg-blue-600 rounded-md text-sm">Buscar</button>
+            <button onclick="toggleMobileSearch()" class="text-white text-xl">×</button>
+        </div>
+        <div id="mobileSearchResults" class="mt-4 max-h-[60vh] overflow-y-auto"></div>
+    </div>
+    <div class="search-overlay" id="searchOverlay" onclick="closeSearch()"></div>
+
+    <!-- ========== BARRA DE FILTROS (CATEGORÍAS) ========== -->
+    <div class="sticky top-0 z-40 bg-[#050505]/95 backdrop-blur-xl border-b border-white/5" id="category-filters">
+        <div class="py-2 sm:py-3 overflow-x-auto no-scrollbar">
+            <div class="max-w-[1600px] mx-auto px-4 sm:px-6 flex items-center gap-2 sm:gap-3" id="category-pills"></div>
+        </div>
+    </div>
+
+    <!-- ========== CONTENEDOR PRINCIPAL ========== -->
+    <main class="max-w-[1600px] mx-auto px-4 sm:px-6 mt-4 min-h-screen" id="main-content">
+        <!-- Vista Feed -->
+        <div id="feed-view" class="space-y-8 sm:space-y-12 transition-opacity duration-300"></div>
+
+        <!-- Vista Grid (resultados de búsqueda / categoría) -->
+        <div id="grid-view" class="hidden transition-opacity duration-300">
+            <div class="flex items-center justify-between mb-6 sm:mb-8 mt-4 sm:mt-6">
+                <h2 id="grid-title" class="text-xl sm:text-2xl font-bold">Resultados</h2>
+                <button onclick="showFeed()" class="text-sm font-bold text-gray-400 hover:text-white flex items-center gap-1">
+                    <span class="text-xl">×</span> Cerrar búsqueda
+                </button>
+            </div>
+            <div id="results-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6"></div>
+            <div id="empty-state" class="hidden py-8 sm:py-10 text-center">
+                <p class="text-gray-400 text-base sm:text-lg mb-6 sm:mb-8" id="empty-msg">No encontramos nada...</p>
+                <h3 class="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Quizás te interese esto:</h3>
+                <div id="recommendations-grid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6"></div>
+            </div>
+        </div>
+
+        <!-- Vista Detalle (episodio/serie) -->
+        <div id="detail-view" class="hidden transition-opacity duration-300"></div>
+
+        <!-- Contenedor para páginas cargadas dinámicamente (buscar, biblioteca, novedades, app) -->
+        <div id="page-view" class="hidden transition-opacity duration-300"></div>
+    </main>
+
+    <!-- ========== MODAL PERSONALIZADO ========== -->
+    <div class="custom-alert" id="customAlert">
+        <div class="alert-content">
+            <div class="alert-title" id="alertTitle">Error</div>
+            <div class="alert-message" id="alertMessage">Mensaje de error</div>
+            <div class="alert-buttons">
+                <button class="alert-btn alert-btn-secondary" onclick="closeAlert()">Cerrar</button>
+                <button class="alert-btn alert-btn-primary" id="alertActionBtn" onclick="handleAlertAction()">Reportar problema</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== SCRIPTS ========== -->
+    <!-- Cargar episodios.js primero (debe exponer USER_EPISODES y funciones) -->
+    <script src="episodios.js"></script>
+
+    <script>
+        // ==================== CONFIGURACIÓN GLOBAL ====================
+        const ICONS = {
+            play: 'https://marca1.odoo.com/web/image/508-f876320c/play.svg',
+            add: 'https://marca1.odoo.com/web/image/509-c555b4ef/a%C3%B1adir%20a.svg',
+            added: 'https://nikichitonjesus.odoo.com/web/image/1112-d141b3eb/a%C3%B1adido.png',
+            dl: 'https://marca1.odoo.com/web/image/510-7a9035c1/descargar.svg',
+            noDl: 'https://nikichitonjesus.odoo.com/web/image/1051-622a3db3/no-desc.webp',
+            remove: 'https://nikichitonjesus.odoo.com/web/image/811-8a809533/remove.png',
+            share: 'https://marca1.odoo.com/web/image/511-3d2d2e2c/compartir.svg'
+        };
+
+        const CATEGORIES = [
+            "Todos",
+            "Derecho",
+            "Física y Astronomía",
+            "Matemáticas",
+            "Historia",
+            "Filosofía",
+            "Economía y Finanzas",
+            "Ciencias Sociales",
+            "Arte y Cultura",
+            "Literatura y Audiolibros",
+            "Cine y TV",
+            "Documentales",
+            "Ciencias Naturales",
+            "Tecnología e Informática",
+            "Otras Ciencias"
+        ];
+
+        // Procesar episodios (usando la función de episodios.js si existe)
+        let DATA = [];
+        if (typeof window.processEpisodes === 'function') {
+            DATA = window.processEpisodes();
+        } else {
+            // Fallback: si no existe, procesar manualmente (por si acaso)
+            if (window.USER_EPISODES) {
+                DATA = window.USER_EPISODES.map((ep, i) => ({
+                    id: i,
+                    slug: ep.detailUrl?.split('/').pop() || `ep-${i}`,
+                    title: ep.title,
+                    author: ep.author || ep.series?.titulo_serie || 'Conferencias Académicas',
+                    categories: window.determineCategories ? window.determineCategories(ep) : [],
+                    cover: ep.coverUrl,
+                    coverWide: ep.coverUrl2 || ep.coverUrl,
+                    mediaUrl: ep.mediaUrl,
+                    type: ep.type,
+                    description: (ep.description || '') + ' ' + (ep.series?.descripcion_serie || ''),
+                    allowDownload: ep.allowDownload !== undefined ? ep.allowDownload : true,
+                    detailUrl: ep.detailUrl,
+                    date: ep.date,
+                    series: ep.series
+                }));
+            }
+        }
+
+        // ==================== PLAYLIST ====================
+        const playlistKey = 'streamhub_userPlaylist';
+        let userPlaylist = JSON.parse(localStorage.getItem(playlistKey)) || [];
+
+        function isInPlaylist(mediaUrl) {
+            return userPlaylist.some(item => item.mediaUrl === mediaUrl);
+        }
+
+        function savePlaylist() {
+            localStorage.setItem(playlistKey, JSON.stringify(userPlaylist));
+        }
+
+        function addToUserPlaylist(episodeData) {
+            if (!episodeData || !episodeData.mediaUrl) return false;
+            const exists = userPlaylist.some(item => item.mediaUrl === episodeData.mediaUrl);
+            if (!exists) {
+                const playlistItem = {
+                    mediaUrl: episodeData.mediaUrl,
+                    mediaType: episodeData.type || episodeData.mediaType || 'audio',
+                    coverUrlContainer: episodeData.cover || episodeData.coverUrlContainer || episodeData.coverUrl,
+                    coverUrlInfo: episodeData.cover || episodeData.coverUrlInfo || episodeData.coverUrl,
+                    title: episodeData.title,
+                    detailUrl: episodeData.detailUrl || '#',
+                    author: episodeData.author || 'Desconocido',
+                    next: [],
+                    text: episodeData.description || '',
+                    allowDownload: episodeData.allowDownload !== undefined ? episodeData.allowDownload : true
+                };
+                userPlaylist.push(playlistItem);
+                savePlaylist();
+                updateAllAddButtons(episodeData.mediaUrl);
+                return true;
+            }
+            return false;
+        }
+
+        function removeFromUserPlaylist(mediaUrl) {
+            userPlaylist = userPlaylist.filter(item => item.mediaUrl !== mediaUrl);
+            savePlaylist();
+            updateAllAddButtons(mediaUrl);
+        }
+
+        function togglePlaylist(episodeData) {
+            if (isInPlaylist(episodeData.mediaUrl)) {
+                removeFromUserPlaylist(episodeData.mediaUrl);
+            } else {
+                addToUserPlaylist(episodeData);
+            }
+        }
+
+        function updateAllAddButtons(mediaUrl) {
+            const isAdded = isInPlaylist(mediaUrl);
+            const newIcon = isAdded ? ICONS.added : ICONS.add;
+            document.querySelectorAll(`[data-mediaurl="${mediaUrl}"]`).forEach(el => {
+                if (el.tagName === 'IMG') {
+                    el.src = newIcon;
+                    el.dataset.added = isAdded;
+                } else {
+                    const img = el.querySelector('img');
+                    if (img && (img.src.includes(ICONS.add) || img.src.includes(ICONS.added))) {
+                        img.src = newIcon;
+                        img.dataset.added = isAdded;
+                    }
+                    el.dataset.added = isAdded;
+                }
+            });
+        }
+
+        // ==================== HISTORIAL (para biblioteca) ====================
+        const historyKey = 'streamhub_history';
+        let userHistory = JSON.parse(localStorage.getItem(historyKey)) || [];
+
+        function addToHistory(episodeData) {
+            if (!episodeData || !episodeData.mediaUrl) return;
+            userHistory = userHistory.filter(item => item.mediaUrl !== episodeData.mediaUrl);
+            userHistory.unshift(episodeData);
+            if (userHistory.length > 50) userHistory.pop();
+            localStorage.setItem(historyKey, JSON.stringify(userHistory));
+        }
+
+        // ==================== LIKES (para biblioteca) ====================
+        const likesKey = 'streamhub_likes';
+        let userLikes = JSON.parse(localStorage.getItem(likesKey)) || [];
+
+        function toggleLike(episodeData) {
+            const exists = userLikes.some(item => item.mediaUrl === episodeData.mediaUrl);
+            if (exists) {
+                userLikes = userLikes.filter(item => item.mediaUrl !== episodeData.mediaUrl);
+            } else {
+                userLikes.push(episodeData);
+            }
+            localStorage.setItem(likesKey, JSON.stringify(userLikes));
+        }
+
+        // ==================== MODAL PERSONALIZADO ====================
+        let alertActionCallback = null;
+        function showAlert(title, message, actionText = 'Reportar problema', actionUrl = 'https://www.baltaanay.org/contactus/') {
+            document.getElementById('alertTitle').innerText = title;
+            document.getElementById('alertMessage').innerText = message;
+            document.getElementById('alertActionBtn').innerText = actionText;
+            alertActionCallback = () => { window.open(actionUrl, '_blank'); };
+            document.getElementById('customAlert').classList.add('active');
+        }
+        function closeAlert() {
+            document.getElementById('customAlert').classList.remove('active');
+        }
+        function handleAlertAction() {
+            if (alertActionCallback) alertActionCallback();
+            closeAlert();
+        }
+
+        // ==================== REPRODUCTOR UNIFICADO ====================
+        function playEpisode(ep, list = []) {
+            if (!ep) return;
+            // Añadir al historial
+            addToHistory({
+                mediaUrl: ep.mediaUrl,
+                type: ep.type,
+                cover: ep.cover,
+                title: ep.title,
+                detailUrl: ep.detailUrl,
+                author: ep.author,
+                description: ep.description,
+                allowDownload: ep.allowDownload
+            });
+
+            if (typeof window.playEpisodeExpanded === 'function') {
+                try {
+                    window.playEpisodeExpanded(
+                        ep.mediaUrl,
+                        ep.type || 'audio',
+                        ep.cover || ep.coverUrl,
+                        ep.coverWide || ep.cover || ep.coverUrl,
+                        ep.title,
+                        ep.detailUrl,
+                        ep.author,
+                        list,
+                        ep.description || '',
+                        ep.allowDownload !== false
+                    );
+                } catch (e) {
+                    showAlert('Error de reproducción', `El episodio "${ep.title}" no está disponible.`, 'Reportar problema');
+                }
+            } else {
+                showAlert('Reproductor no disponible', 'El reproductor externo no está cargado. Intenta más tarde.', 'Reportar problema');
+            }
+        }
+
+        // ==================== DESCARGA ====================
+        function downloadEpisode(ep) {
+            if (!ep) return;
+            if (ep.allowDownload === false) {
+                showAlert('Descarga no disponible', `El episodio "${ep.title}" no permite descarga.`, 'Solicitar', 'https://www.baltaanay.org/contactus/');
+                return;
+            }
+            const ext = ep.type === 'video' ? 'mp4' : 'mp3';
+            const filename = `${ep.title.replace(/[^a-z0-9]/gi, '_').substring(0, 50)}.${ext}`;
+            try {
+                const a = document.createElement('a');
+                a.href = ep.mediaUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                // Si falla por CORS, abrir en nueva pestaña
+                setTimeout(() => {
+                    if (!a.href.startsWith('blob:')) {
+                        window.open(ep.mediaUrl, '_blank');
+                    }
+                }, 1000);
+            } catch (error) {
+                window.open(ep.mediaUrl, '_blank');
+            }
+        }
+
+        // ==================== DETECCIÓN DE INSTALACIÓN PWA ====================
+        function isAppInstalled() {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        }
+
+        function updateUserIcons() {
+            const isMobile = window.innerWidth < 768;
+            const installed = isAppInstalled();
+            // Desktop siempre subir
+            if (!isMobile) {
+                document.getElementById('userActionLink').href = 'https://www.baltaanay.org/subir';
+                document.getElementById('userActionIcon').src = 'https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp';
+                document.getElementById('userActionText').innerText = 'Subir';
+                document.getElementById('mobileUserActionLink').href = 'https://www.baltaanay.org/subir';
+                document.getElementById('mobileUserActionIcon').src = 'https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp';
+            } else {
+                // Móvil
+                if (installed) {
+                    document.getElementById('mobileUserActionLink').href = 'https://www.baltaanay.org/subir';
+                    document.getElementById('mobileUserActionIcon').src = 'https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp';
+                    document.getElementById('userActionLink').href = 'https://www.baltaanay.org/subir';
+                    document.getElementById('userActionIcon').src = 'https://www.baltaanay.org/web/image/991-1c3c204a/subir.webp';
+                    document.getElementById('userActionText').innerText = 'Subir';
+                } else {
+                    document.getElementById('mobileUserActionLink').href = '/app';
+                    document.getElementById('mobileUserActionIcon').src = 'https://nikichitonjesus.odoo.com/web/image/1051-622a3db3/no-desc.webp';
+                    document.getElementById('userActionLink').href = '/app';
+                    document.getElementById('userActionIcon').src = 'https://nikichitonjesus.odoo.com/web/image/1051-622a3db3/no-desc.webp';
+                    document.getElementById('userActionText').innerText = 'Instalar';
+                }
+            }
+        }
+
+        // ==================== ROUTER SPA ====================
+        const Router = {
+            init() {
+                document.addEventListener('click', (e) => {
+                    const link = e.target.closest('a');
+                    if (!link) return;
+                    const href = link.getAttribute('href');
+                    if (!href) return;
+                    if (href.startsWith('http') || href.startsWith('//') || href.startsWith('#')) return;
+                    e.preventDefault();
+                    this.navigate(href);
+                });
+                window.addEventListener('popstate', () => {
+                    this.renderPath(window.location.pathname + window.location.search);
+                });
+                this.renderPath(window.location.pathname + window.location.search);
+            },
+
+            navigate(path) {
+                history.pushState({}, '', path);
+                this.renderPath(path);
+                // Actualizar barra inferior activa
+                document.querySelectorAll('.mobile-bottom-bar a').forEach(a => {
+                    a.classList.toggle('active', a.getAttribute('href') === path);
+                });
+                // Actualizar sidebar activa
+                document.querySelectorAll('.desktop-sidebar .nav-item').forEach(a => {
+                    const href = a.getAttribute('href');
+                    a.classList.toggle('active', href === path);
+                });
+            },
+
+            renderPath(fullPath) {
+                const [path, query] = fullPath.split('?');
+                const params = new URLSearchParams(query);
+
+                // Ocultar todas las vistas
+                document.getElementById('feed-view').classList.add('hidden');
+                document.getElementById('grid-view').classList.add('hidden');
+                document.getElementById('detail-view').classList.add('hidden');
+                document.getElementById('page-view').classList.add('hidden');
+
+                // Mostrar/ocultar cabecera superior y filtros (ocultar en /buscar)
+                const header = document.getElementById('top-header');
+                const categoryFilters = document.getElementById('category-filters');
+                if (path === '/buscar' || path.startsWith('/buscar?')) {
+                    header.style.display = 'none';
+                    categoryFilters.style.display = 'none';
+                } else {
+                    header.style.display = 'block';
+                    categoryFilters.style.display = 'block';
+                }
+
+                // Ruta raíz
+                if (path === '/' || path === '') {
+                    document.getElementById('feed-view').classList.remove('hidden');
+                    document.title = 'Balta Media';
+                    return;
+                }
+
+                // Páginas que cargamos desde /paginas/
+                const pageScripts = {
+                    '/buscar': '/paginas/buscar.js',
+                    '/biblioteca': '/paginas/biblioteca.js',
+                    '/novedades': '/paginas/novedades.js',
+                    '/app': '/paginas/app.js'  // app.js puede ser un script simple que renderiza la página de instalación
+                };
+
+                if (pageScripts[path]) {
+                    this.loadPageScript(pageScripts[path], path);
+                    return;
+                }
+
+                // Categoría (usamos grid view interno)
+                if (path.startsWith('/categoria/')) {
+                    const cat = decodeURIComponent(path.replace('/categoria/', ''));
+                    document.getElementById('grid-view').classList.remove('hidden');
+                    document.title = `${cat} | Balta Media`;
+                    this.renderCategoryView(cat);
+                    return;
+                }
+
+                // Serie (buscamos por url_serie)
+                const seriesEpisodes = DATA.filter(ep => ep.series && ep.series.url_serie === path);
+                if (seriesEpisodes.length > 0) {
+                    document.getElementById('detail-view').classList.remove('hidden');
+                    document.title = `${seriesEpisodes[0].series.titulo_serie} | Balta Media`;
+                    this.renderSeriesWidget(seriesEpisodes);
+                    return;
+                }
+
+                // Episodio (detailUrl)
+                const episode = DATA.find(ep => ep.detailUrl === path);
+                if (episode) {
+                    document.getElementById('detail-view').classList.remove('hidden');
+                    document.title = `${episode.title} | Balta Media`;
+                    this.renderEpisodeWidget(episode);
+                    return;
+                }
+
+                // 404
+                document.title = 'Página no encontrada | Balta Media';
+                document.getElementById('detail-view').classList.remove('hidden');
+                document.getElementById('detail-view').innerHTML = `
+                    <div class="detail-404">
+                        <h2 class="text-3xl sm:text-4xl font-bold mb-4">404</h2>
+                        <p class="text-lg sm:text-xl">Este contenido no está disponible</p>
+                    </div>
+                `;
+            },
+
+            loadPageScript(scriptUrl, path) {
+                // Cargar script dinámicamente si no está ya cargado
+                const scriptId = 'page-script-' + path.replace(/\//g, '-');
+                if (!document.getElementById(scriptId)) {
+                    const script = document.createElement('script');
+                    script.id = scriptId;
+                    script.src = scriptUrl;
+                    script.onload = () => {
+                        document.getElementById('page-view').classList.remove('hidden');
+                        // Si el script expone una función init, llamarla
+                        if (window.pageScript && window.pageScript.init) {
+                            window.pageScript.init();
+                        }
+                    };
+                    script.onerror = () => {
+                        document.getElementById('page-view').innerHTML = '<div class="detail-404"><h2>Error al cargar la página</h2></div>';
+                        document.getElementById('page-view').classList.remove('hidden');
+                    };
+                    document.body.appendChild(script);
+                } else {
+                    document.getElementById('page-view').classList.remove('hidden');
+                    if (window.pageScript && window.pageScript.init) {
+                        window.pageScript.init();
+                    }
+                }
+            },
+
+            renderCategoryView(cat) {
+                const results = DATA.filter(ep => ep.categories.includes(cat));
+                this.renderGrid(results, cat);
+            },
+
+            renderGrid(items, title) {
+                const gridContainer = document.getElementById('results-grid');
+                const emptyState = document.getElementById('empty-state');
+                const titleEl = document.getElementById('grid-title');
+                titleEl.innerText = title;
+                gridContainer.innerHTML = '';
+
+                if (items.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    gridContainer.classList.add('hidden');
+                    document.getElementById('empty-msg').innerText = `No hay episodios en la categoría "${title}"`;
+                    const suggestions = [...DATA].sort(() => 0.5 - Math.random()).slice(0, 5);
+                    const recGrid = document.getElementById('recommendations-grid');
+                    recGrid.innerHTML = '';
+                    suggestions.forEach(ep => recGrid.innerHTML += this.createGridCard(ep));
+                } else {
+                    emptyState.classList.add('hidden');
+                    gridContainer.classList.remove('hidden');
+                    items.forEach(item => {
+                        gridContainer.innerHTML += this.createGridCard(item);
+                    });
+                }
+            },
+
+            createGridCard(item) {
+                const isInPlaylistItem = isInPlaylist(item.mediaUrl);
+                const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
+                const dlIcon = item.allowDownload ? ICONS.dl : ICONS.noDl;
+                return `
+                    <div class="grid-card group">
+                        <div class="aspect-square bg-zinc-800 relative" onclick="goToDetail('${item.detailUrl}')">
+                            <img src="${item.cover}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                            <div class="overlay-full">
+                                <img src="${addIcon}" class="action-icon" onclick="handleAdd(event, '${item.mediaUrl}'); return false;" 
+                                     data-mediaurl="${item.mediaUrl}" data-added="${isInPlaylistItem}">
+                                <img src="${ICONS.play}" class="play-icon-lg" onclick="handlePlay(event, '${item.mediaUrl}'); return false;">
+                                <img src="${dlIcon}" class="action-icon" onclick="handleDl(event, '${item.mediaUrl}'); return false;" 
+                                     title="${item.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
+                            </div>
+                            <div class="mobile-play-button" onclick="handlePlay(event, '${item.mediaUrl}'); return false;">
+                                <img src="${ICONS.play}" alt="Play">
+                            </div>
+                        </div>
+                        <div onclick="goToDetail('${item.detailUrl}')">
+                            <h4 class="font-bold text-sm text-white truncate">${item.title}</h4>
+                            <p class="text-xs text-gray-500 truncate">${item.author}</p>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderSeriesWidget(episodes) {
+                // Implementación básica - puedes ampliarla después
+                const series = episodes[0].series;
+                let html = `<h1 class="text-2xl font-bold">${series.titulo_serie}</h1>`;
+                html += '<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-6">';
+                episodes.forEach(ep => {
+                    html += this.createGridCard(ep);
+                });
+                html += '</div>';
+                document.getElementById('detail-view').innerHTML = html;
+            },
+
+            renderEpisodeWidget(episode) {
+                let html = `<h1 class="text-2xl font-bold">${episode.title}</h1>`;
+                html += `<p class="text-gray-400 mt-2">${episode.author}</p>`;
+                html += `<p class="mt-4">${episode.description}</p>`;
+                document.getElementById('detail-view').innerHTML = html;
+            }
+        };
+
+        // ==================== FUNCIONES DEL FEED (adaptadas del código original) ====================
+        function renderCategoryPills(activeCat = 'Todos') {
+            const container = document.getElementById('category-pills');
+            if (!container) return;
+            container.innerHTML = '';
+            CATEGORIES.forEach(cat => {
+                const isActive = cat === activeCat;
+                const btn = document.createElement('button');
+                btn.className = `whitespace-nowrap px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs font-bold transition-all ${isActive ? 'bg-white text-black' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`;
+                btn.innerText = cat;
+                btn.onclick = () => {
+                    if (cat === 'Todos') {
+                        Router.navigate('/');
+                    } else {
+                        Router.navigate('/categoria/' + encodeURIComponent(cat));
+                    }
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function createStandardCard(ep) {
+            const isInPlaylistItem = isInPlaylist(ep.mediaUrl);
+            const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
+            const dlIcon = ep.allowDownload ? ICONS.dl : ICONS.noDl;
+            return `<div class="card-std group">
+                <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800" onclick="goToDetail('${ep.detailUrl}')">
+                    <img src="${ep.cover}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    <div class="overlay-full">
+                        <img src="${addIcon}" class="action-icon" onclick="handleAdd(event, '${ep.mediaUrl}'); return false;" 
+                             data-mediaurl="${ep.mediaUrl}" data-added="${isInPlaylistItem}">
+                        <img src="${ICONS.play}" class="play-icon-lg" onclick="handlePlay(event, '${ep.mediaUrl}'); return false;">
+                        <img src="${dlIcon}" class="action-icon" onclick="handleDl(event, '${ep.mediaUrl}'); return false;" 
+                             title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
+                    </div>
+                    <div class="mobile-play-button" onclick="handlePlay(event, '${ep.mediaUrl}'); return false;">
+                        <img src="${ICONS.play}" alt="Play">
+                    </div>
+                </div>
+                <div onclick="goToDetail('${ep.detailUrl}')">
+                    <h3 class="font-bold text-white text-sm truncate">${ep.title}</h3>
+                    <p class="text-xs text-gray-400 mt-1 truncate">${ep.author}</p>
+                </div>
+            </div>`;
+        }
+
+        function createVideoExpand(ep) {
+            const isInPlaylistItem = isInPlaylist(ep.mediaUrl);
+            const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
+            const dlIcon = ep.allowDownload ? ICONS.dl : ICONS.noDl;
+            const hasCover2 = ep.coverWide && ep.coverWide !== ep.cover;
+            return `<div class="card-video group">
+                <img src="${ep.cover}" class="absolute inset-0 w-full h-full object-cover z-10 group-hover:opacity-0 transition-opacity duration-300">
+                ${hasCover2 ? `<img src="${ep.coverWide}" class="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300">` : ''}
+                <div class="overlay-full z-20">
+                    <img src="${addIcon}" class="action-icon" onclick="handleAdd(event, '${ep.mediaUrl}'); return false;" 
+                         data-mediaurl="${ep.mediaUrl}" data-added="${isInPlaylistItem}">
+                    <img src="${ICONS.play}" class="play-icon-lg" onclick="handlePlay(event, '${ep.mediaUrl}'); return false;">
+                    <img src="${dlIcon}" class="action-icon" onclick="handleDl(event, '${ep.mediaUrl}'); return false;" 
+                         title="${ep.allowDownload ? 'Descargar' : 'Descarga no disponible'}">
+                </div>
+                <div class="mobile-play-button z-30" onclick="handlePlay(event, '${ep.mediaUrl}'); return false;">
+                    <img src="${ICONS.play}" alt="Play">
+                </div>
+                <div class="absolute bottom-2 left-2 z-20 bg-black/60 px-2 py-0.5 rounded text-[10px] font-bold">VIDEO</div>
+            </div>`;
+        }
+
+        function createListItem(ep, idx) {
+            const isInPlaylistItem = isInPlaylist(ep.mediaUrl);
+            const addIcon = isInPlaylistItem ? ICONS.added : ICONS.add;
+            return `<div class="list-item group">
+                <span class="text-gray-500 font-bold w-4 text-center text-sm flex-shrink-0">${idx + 1}</span>
+                <div class="relative w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 rounded overflow-hidden" onclick="goToDetail('${ep.detailUrl}')">
+                    <img src="${ep.cover}" class="w-full h-full object-cover">
+                    <div class="overlay-mini" onclick="handlePlay(event, '${ep.mediaUrl}'); return false;"><img src="${ICONS.play}" class="play-icon-sm"></div>
+                </div>
+                <div class="item-content" onclick="goToDetail('${ep.detailUrl}')">
+                    <h4 class="font-bold text-sm truncate text-white">${ep.title}</h4>
+                    <p class="text-xs text-gray-500 truncate">${ep.author}</p>
+                </div>
+                <div class="item-actions">
+                    <button class="lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onclick="handleAdd(event, '${ep.mediaUrl}'); return false;">
+                        <img src="${addIcon}" alt="Agregar" class="w-5 h-5" data-mediaurl="${ep.mediaUrl}" data-added="${isInPlaylistItem}">
+                    </button>
+                    <div class="lg:hidden mobile-play-button" style="position: static; width: 32px; height: 32px;" onclick="handlePlay(event, '${ep.mediaUrl}'); return false;">
+                        <img src="${ICONS.play}" alt="Play" class="w-4 h-4">
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function createCarousel(title, type, items, categoryContext) {
+            if (!items || items.length === 0) return '';
+            const id = 'c-' + Math.random().toString(36).substr(2, 9);
+            let content = '';
+            if (type === 'double') {
+                content = `<div id="${id}" class="flex flex-col flex-wrap h-[580px] gap-x-6 gap-y-6 overflow-x-auto no-scrollbar scroll-smooth">` + items.map(ep => createStandardCard(ep)).join('') + `</div>`;
+            } else if (type === 'list') {
+                content = `<div id="${id}" class="flex gap-4 sm:gap-8 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
+                for (let i = 0; i < items.length; i += 4) {
+                    content += `<div class="card-list-group min-w-[300px] sm:min-w-[340px]">` +
+                        (items[i] ? createListItem(items[i], i) : '') +
+                        (items[i+1] ? createListItem(items[i+1], i+1) : '') +
+                        (items[i+2] ? createListItem(items[i+2], i+2) : '') +
+                        (items[i+3] ? createListItem(items[i+3], i+3) : '') +
+                        `</div>`;
+                }
+                content += `</div>`;
+            } else if (type === 'expand') {
+                content = `<div id="${id}" class="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + items.map(ep => createVideoExpand(ep)).join('') + `</div>`;
+            } else {
+                content = `<div id="${id}" class="flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth py-2 pl-1">` + items.map(ep => createStandardCard(ep)).join('') + `</div>`;
+            }
+            return `<section class="carousel-wrapper relative group/section mb-8 sm:mb-12">
+                <div class="flex items-end justify-between mb-3 sm:mb-5 px-1">
+                    <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white hover:text-blue-500 transition-colors">${title}</h2>
+                    <button onclick="Router.navigate('/categoria/${encodeURIComponent(categoryContext)}')" class="text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-white">Ver todo</button>
+                </div>
+                <div class="relative">
+                    <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
+                    ${content}
+                    <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
+                </div>
+            </section>`;
+        }
+
+        function createSeriesCarousel() {
+            const id = 'c-series-' + Math.random().toString(36).substr(2, 9);
+            const seriesGroups = {};
+            DATA.forEach(ep => {
+                if (ep.series && ep.series.titulo_serie) {
+                    const serieKey = ep.series.titulo_serie;
+                    if (!seriesGroups[serieKey]) {
+                        seriesGroups[serieKey] = {episodes: [], seriesInfo: ep.series};
+                    }
+                    seriesGroups[serieKey].episodes.push(ep);
+                }
+            });
+            const seriesKeys = Object.keys(seriesGroups);
+            if (seriesKeys.length === 0) return '';
+            let content = `<div id="${id}" class="flex gap-4 sm:gap-8 overflow-x-auto no-scrollbar scroll-smooth pb-4">`;
+            seriesKeys.forEach(serieKey => {
+                let group = seriesGroups[serieKey];
+                group.episodes.sort((a, b) => new Date(b.date) - new Date(a.date));
+                const s = group.seriesInfo;
+                if (!s || group.episodes.length < 1) return;
+                content += `<div class="card-list-group min-w-[300px] sm:min-w-[340px]">
+                    <div class="mb-4 cursor-pointer" onclick="goToDetail('${s.url_serie}')">
+                        <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-zinc-800">
+                            <img src="${s.portada_serie}" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-bold text-white text-sm truncate mt-2">${s.titulo_serie}</h3>
+                        <p class="text-xs text-gray-400">ver serie</p>
+                    </div>`;
+                group.episodes.slice(0, 4).forEach((ep, i) => {
+                    content += createListItem(ep, i);
+                });
+                content += `</div>`;
+            });
+            content += `</div>`;
+            return `<section class="carousel-wrapper relative group/section mb-8 sm:mb-12">
+                <div class="flex items-end justify-between mb-3 sm:mb-5 px-1">
+                    <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-white hover:text-blue-500 transition-colors">Series y Cursos Académicos</h2>
+                    <button class="text-xs font-bold text-gray-500 uppercase tracking-wider hover:text-white">Ver todo</button>
+                </div>
+                <div class="relative">
+                    <div class="nav-btn left" onclick="document.getElementById('${id}').scrollLeft -= 600"><button>❮</button></div>
+                    ${content}
+                    <div class="nav-btn right" onclick="document.getElementById('${id}').scrollLeft += 600"><button>❯</button></div>
+                </div>
+            </section>`;
+        }
+
+        function initFeed() {
+            if (!DATA || DATA.length === 0) {
+                document.getElementById('feed-view').innerHTML = '<div class="text-center py-20"><p class="text-gray-400 text-lg">No hay contenido disponible en este momento.</p></div>';
+                return;
+            }
+            renderCategoryPills();
+            const feed = document.getElementById('feed-view');
+            const getRandomSafe = (count, filterFn = () => true) => {
+                const filtered = DATA.filter(filterFn);
+                if (filtered.length === 0) return [];
+                const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+                return shuffled.slice(0, Math.min(count, shuffled.length));
+            };
+            feed.innerHTML = '';
+            feed.innerHTML += createCarousel("Nuevos Lanzamientos", "standard", getRandomSafe(15, ep => new Date(ep.date) > new Date(Date.now() - 30*24*60*60*1000)), "Todos");
+            feed.innerHTML += createCarousel("Series de Video", "expand", getRandomSafe(10, e => e.type === 'video'), "Cine y TV");
+            feed.innerHTML += createCarousel("Top Semanal", "list", getRandomSafe(16), "Todos");
+            feed.innerHTML += createCarousel("Para Estudiar Profundamente", "double", getRandomSafe(20, e => e.categories.includes("Matemáticas") || e.categories.includes("Física y Astronomía")), "Matemáticas");
+            feed.innerHTML += createCarousel("Matemáticas", "standard", getRandomSafe(15, e => e.categories.includes("Matemáticas")), "Matemáticas");
+            feed.innerHTML += createCarousel("Especiales en Video", "expand", getRandomSafe(10, e => e.type === 'video' && e.categories.includes("Documentales")), "Documentales");
+            feed.innerHTML += createCarousel("Física y Astronomía", "standard", getRandomSafe(15, e => e.categories.includes("Física y Astronomía")), "Física y Astronomía");
+            feed.innerHTML += createCarousel("Ciencias Naturales y Tecnología", "double", getRandomSafe(20, e => e.categories.some(c => ["Ciencias Naturales", "Tecnología e Informática"].includes(c))), "Otras Ciencias");
+            feed.innerHTML += createSeriesCarousel();
+            feed.innerHTML += createCarousel("Otras Ciencias y Disciplinas", "standard", getRandomSafe(15, e => e.categories.includes("Otras Ciencias") || e.categories.some(c => ["Ciencias Naturales", "Tecnología e Informática"].includes(c))), "Otras Ciencias");
+        }
+
+        // ==================== HANDLERS GLOBALES ====================
+        window.handlePlay = function(e, mediaUrl) {
             e.stopPropagation();
-            const epData = JSON.parse(btn.dataset.episode);
-            playEpisode(epData);
+            e.preventDefault();
+            const ep = DATA.find(x => x.mediaUrl === mediaUrl);
+            if (ep) playEpisode(ep);
+            return false;
+        };
+
+        window.handleAdd = function(e, mediaUrl) {
+            e.stopPropagation();
+            e.preventDefault();
+            const ep = DATA.find(x => x.mediaUrl === mediaUrl);
+            if (ep) togglePlaylist(ep);
+            return false;
+        };
+
+        window.handleDl = function(e, mediaUrl) {
+            e.stopPropagation();
+            e.preventDefault();
+            const ep = DATA.find(x => x.mediaUrl === mediaUrl);
+            if (ep) downloadEpisode(ep);
+            return false;
+        };
+
+        window.goToDetail = function(url) {
+            if (url && url !== '#') Router.navigate(url);
+        };
+
+        // ==================== BÚSQUEDA (funciones del header) ====================
+        let searchTimeout = null;
+        function showDesktopSearchResults() { document.getElementById('desktopSearchResults').classList.add('active'); }
+        function hideDesktopSearchResults() { setTimeout(() => document.getElementById('desktopSearchResults').classList.remove('active'), 200); }
+        function handleDesktopSearchInput(query) {
+            clearTimeout(searchTimeout);
+            if (!query || query.trim() === '') { clearDesktopSearchResults(); return; }
+            searchTimeout = setTimeout(() => {
+                const results = performQuickSearch(query);
+                renderDesktopSearchResults(results, query);
+            }, 300);
+        }
+        function handleDesktopSearchEnter(event) {
+            event.preventDefault();
+            const query = document.getElementById('desktopSearch').value.trim();
+            if (query) {
+                Router.navigate('/buscar?q=' + encodeURIComponent(query));
+                hideDesktopSearchResults();
+            }
+        }
+        function performQuickSearch(query) {
+            const term = query.toLowerCase().trim();
+            return DATA.filter(ep =>
+                ep.title.toLowerCase().includes(term) ||
+                ep.author.toLowerCase().includes(term) ||
+                ep.categories.some(c => c.toLowerCase().includes(term)) ||
+                ep.description.toLowerCase().includes(term)
+            ).slice(0, 5);
+        }
+        function renderDesktopSearchResults(results, query) {
+            const container = document.getElementById('desktopSearchResultsContent');
+            if (!container) return;
+            if (results.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-gray-400"><p>No encontramos resultados para "${query}"</p></div>`;
+                return;
+            }
+            container.innerHTML = results.map(ep => `
+                <div class="search-result-item" onclick="goToDetail('${ep.detailUrl}'); event.stopPropagation();">
+                    <div class="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+                        <img src="${ep.cover}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-sm text-white truncate">${ep.title}</h4>
+                        <p class="text-xs text-gray-400 truncate">${ep.author} • ${ep.type === 'video' ? 'Video' : 'Audio'}</p>
+                    </div>
+                </div>
+            `).join('');
+            container.innerHTML += `
+                <div class="search-result-item mt-2 border-t border-white/10 pt-2" onclick="Router.navigate('/buscar?q='+encodeURIComponent('${query}'))">
+                    <div class="flex items-center justify-center w-full">
+                        <span class="text-blue-400 font-bold text-sm">Ver todos los resultados para "${query}"</span>
+                    </div>
+                </div>
+            `;
+        }
+        function clearDesktopSearchResults() {
+            document.getElementById('desktopSearchResultsContent').innerHTML = '';
+            document.getElementById('desktopSearchResults').classList.remove('active');
+        }
+        function handleMobileSearchInput(query) {
+            clearTimeout(searchTimeout);
+            if (!query || query.trim() === '') { clearMobileSearchResults(); return; }
+            searchTimeout = setTimeout(() => {
+                const results = performQuickSearch(query);
+                renderMobileSearchResults(results, query);
+            }, 300);
+        }
+        function handleMobileSearchEnter(event) {
+            event.preventDefault();
+            const query = document.getElementById('mobileSearchInput').value.trim();
+            if (query) handleMobileSearch(query);
+        }
+        function handleMobileSearchButton() {
+            const query = document.getElementById('mobileSearchInput').value.trim();
+            if (query) handleMobileSearch(query);
+        }
+        function renderMobileSearchResults(results, query) {
+            const container = document.getElementById('mobileSearchResults');
+            if (!container) return;
+            if (results.length === 0) {
+                container.innerHTML = `<div class="text-center py-4 text-gray-400"><p>No encontramos resultados para "${query}"</p></div>`;
+                return;
+            }
+            container.innerHTML = results.map(ep => `
+                <div class="search-result-item" onclick="goToDetail('${ep.detailUrl}'); closeSearch();">
+                    <div class="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+                        <img src="${ep.cover}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-sm text-white truncate">${ep.title}</h4>
+                        <p class="text-xs text-gray-400 truncate">${ep.author} • ${ep.type === 'video' ? 'Video' : 'Audio'}</p>
+                    </div>
+                </div>
+            `).join('');
+            container.innerHTML += `
+                <div class="search-result-item mt-2 border-t border-white/10 pt-2" onclick="handleMobileSearch('${query}')">
+                    <div class="flex items-center justify-center w-full">
+                        <span class="text-blue-400 font-bold text-sm">Ver todos los resultados para "${query}"</span>
+                    </div>
+                </div>
+            `;
+        }
+        function clearMobileSearchResults() { document.getElementById('mobileSearchResults').innerHTML = ''; }
+        function toggleMobileSearch() {
+            const el = document.getElementById('mobileSearchBar');
+            const overlay = document.getElementById('searchOverlay');
+            if (el.classList.contains('open')) {
+                el.classList.remove('open');
+                overlay.classList.remove('active');
+                document.getElementById('mobileSearchInput').value = '';
+                clearMobileSearchResults();
+            } else {
+                el.classList.add('open');
+                overlay.classList.add('active');
+                document.getElementById('mobileSearchInput').focus();
+            }
+        }
+        function handleMobileSearch(query) {
+            const input = document.getElementById('mobileSearchInput');
+            const searchQuery = query || input.value.trim();
+            if (searchQuery) {
+                Router.navigate('/buscar?q=' + encodeURIComponent(searchQuery));
+                closeSearch();
+            }
+        }
+        function closeSearch() {
+            document.getElementById('mobileSearchBar').classList.remove('open');
+            document.getElementById('searchOverlay').classList.remove('active');
+            clearDesktopSearchResults();
+            clearMobileSearchResults();
+        }
+        function showFeed() { Router.navigate('/'); }
+
+        // ==================== SIDEBAR Y AJUSTE DE LAYOUT ====================
+        function initSidebar() {
+            const sidebar = document.getElementById('desktopSidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            if (!sidebar || !toggle) return;
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                if (isCollapsed) {
+                    sidebar.classList.remove('collapsed');
+                    sidebar.classList.add('expanded');
+                    document.body.style.marginLeft = '15%';
+                    adjustPlayer('15%', 'calc(100% - 15%)');
+                } else {
+                    sidebar.classList.add('collapsed');
+                    sidebar.classList.remove('expanded');
+                    document.body.style.marginLeft = '70px';
+                    adjustPlayer('70px', 'calc(100% - 70px)');
+                }
+            });
+            function adjustPlayer(left, width) {
+                const player = document.querySelector('.player-universal');
+                if (player) {
+                    player.style.left = left;
+                    player.style.width = width;
+                }
+            }
+            // Estado inicial colapsado
+            document.body.style.marginLeft = '70px';
+            adjustPlayer('70px', 'calc(100% - 70px)');
+        }
+
+        // ==================== POBLAR RECOMENDADOS EN SIDEBAR ====================
+        function populateSidebarRecs() {
+            const container = document.getElementById('sidebarRecList');
+            if (!container) return;
+            let recs = [];
+            if (typeof window.RECOMENDADOS !== 'undefined') {
+                try { recs = window.RECOMENDADOS; } catch (e) {}
+            }
+            if (!recs.length) {
+                container.innerHTML = '<div class="text-gray-500 text-xs p-2">No hay recomendados</div>';
+                return;
+            }
+            container.innerHTML = '';
+            recs.slice(0, 4).forEach(ep => {
+                const item = document.createElement('div');
+                item.className = 'rec-item';
+                item.innerHTML = `
+                    <div class="rec-item-info">
+                        <div class="rec-item-title">${ep.title}</div>
+                        <div class="rec-item-author">${ep.author || ''}</div>
+                    </div>
+                    <button class="rec-play-btn" onclick="handlePlay(event, '${ep.mediaUrl}')">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // ==================== SERVICE WORKER ====================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.error('SW registration failed:', err));
+            });
+        }
+
+        // ==================== INICIALIZACIÓN ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initFeed();
+            Router.init();
+            initSidebar();
+            populateSidebarRecs();
+            updateUserIcons();
+            window.addEventListener('resize', updateUserIcons);
         });
-        container.appendChild(item);
-    });
-}
 
-function initSidebarToggle() {
-    const sidebar = document.getElementById('desktopSidebar');
-    const toggle = document.getElementById('sidebarToggle');
-    if (!sidebar || !toggle) return;
-    toggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isCollapsed = sidebar.classList.contains('collapsed');
-        if (isCollapsed) {
-            sidebar.classList.remove('collapsed');
-            sidebar.classList.add('expanded');
-            adjustLayout(true);
-        } else {
-            sidebar.classList.add('collapsed');
-            sidebar.classList.remove('expanded');
-            adjustLayout(false);
-        }
-    });
-}
-
-function adjustLayout(expanded) {
-    const player = document.querySelector('.player-universal');
-    if (!player) return;
-    if (expanded) {
-        document.body.style.marginLeft = '15%';
-        player.style.left = '15%';
-        player.style.width = 'calc(100% - 15%)';
-    } else {
-        document.body.style.marginLeft = '70px';
-        player.style.left = '70px';
-        player.style.width = 'calc(100% - 70px)';
-    }
-}
-
-function setActiveNav() {
-    const currentPath = window.location.pathname;
-    document.querySelectorAll('.desktop-sidebar .nav-item').forEach(item => {
-        const href = item.getAttribute('href');
-        if (href === currentPath || (href === '/' && currentPath === '/')) {
-            item.classList.add('active');
-        } else {
-            item.classList.remove('active');
-        }
-    });
-}
-
-// ==================== BÚSQUEDA EN HEADER (funciones básicas) ====================
-function handleDesktopSearchInput(query) {
-    // Implementar según tu código original
-}
-function handleDesktopSearchEnter(event) {
-    event.preventDefault();
-    const query = document.getElementById('desktopSearch').value.trim();
-    if (query) {
-        Router.navigate('/buscar?q=' + encodeURIComponent(query));
-        hideDesktopSearchResults();
-    }
-}
-function showDesktopSearchResults() {
-    document.getElementById('desktopSearchResults').classList.add('active');
-}
-function hideDesktopSearchResults() {
-    setTimeout(() => {
-        document.getElementById('desktopSearchResults')?.classList.remove('active');
-    }, 200);
-}
-function handleMobileSearchInput(query) {}
-function handleMobileSearchEnter(event) {
-    event.preventDefault();
-    const query = document.getElementById('mobileSearchInput').value.trim();
-    if (query) handleMobileSearch(query);
-}
-function handleMobileSearchButton() {
-    const query = document.getElementById('mobileSearchInput').value.trim();
-    if (query) handleMobileSearch(query);
-}
-function handleMobileSearch(query) {
-    if (query) {
-        Router.navigate('/buscar?q=' + encodeURIComponent(query));
-        closeSearch();
-    }
-}
-function toggleMobileSearch() {
-    const el = document.getElementById('mobileSearchBar');
-    const overlay = document.getElementById('searchOverlay');
-    if (el.classList.contains('open')) {
-        el.classList.remove('open');
-        overlay.classList.remove('active');
-        document.getElementById('mobileSearchInput').value = '';
-    } else {
-        el.classList.add('open');
-        overlay.classList.add('active');
-        document.getElementById('mobileSearchInput').focus();
-    }
-}
-function closeSearch() {
-    const mobileBar = document.getElementById('mobileSearchBar');
-    const overlay = document.getElementById('searchOverlay');
-    if (mobileBar && mobileBar.classList.contains('open')) {
-        mobileBar.classList.remove('open');
-    }
-    if (overlay) overlay.classList.remove('active');
-    hideDesktopSearchResults();
-}
-
-// ==================== VISTAS DE DETALLE (serie/episodio) ====================
-function renderSeriesWidget(episodes) {
-    // ... (tu código existente, adaptado para usar playEpisode, togglePlaylist, etc.)
-    // Por brevedad, omito el código extenso, pero debes incluirlo aquí.
-    // Asegúrate de que los botones llamen a las funciones globales.
-}
-
-function renderEpisodeWidget(episode) {
-    // ... (tu código existente)
-}
-
-// ==================== PÁGINA /app ====================
-function renderAppPage() {
-    const container = document.getElementById('app-page');
-    container.innerHTML = `
-        <h1 class="text-3xl font-bold mb-4">Instalar Balta Media</h1>
-        <p class="text-gray-400 mb-8">Disfruta de acceso rápido desde tu pantalla de inicio.</p>
-        <button id="installAppBtn" class="bg-blue-600 text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-blue-700 transition">Instalar aplicación</button>
-        <p class="text-sm text-gray-500 mt-6">Si ya está instalada, puedes abrirla desde tu pantalla de inicio.</p>
-    `;
-    document.getElementById('installAppBtn').addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt;
-            console.log('Resultado de instalación:', outcome);
-            deferredPrompt = null;
-        } else {
-            alert('La instalación no está disponible en este navegador o ya está instalada.');
-        }
-    });
-}
-
-// ==================== REGISTRO DE SERVICE WORKER ====================
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(err => console.error('Error SW:', err));
-    });
-}
-
-// ==================== VARIABLES PWA ====================
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    updateUserIcons();
-});
-
-window.addEventListener('appinstalled', () => {
-    deferredPrompt = null;
-    updateUserIcons();
-});
-
-window.addEventListener('resize', updateUserIcons);
-updateUserIcons();
-
-// Exponer funciones globales
-window.addToUserPlaylist = addToUserPlaylist;
-window.removeFromUserPlaylist = removeFromUserPlaylist;
-window.togglePlaylist = togglePlaylist;
-window.playEpisode = playEpisode;
-window.downloadEpisode = downloadEpisode;
-
-// ==================== INICIALIZACIÓN ====================
-document.addEventListener('DOMContentLoaded', () => {
-    initFeed();
-    renderSidebar();
-    Router.init();
-});
-
-// ==================== INTEGRACIÓN DE PÁGINAS EXTERNAS (Novedades, Biblioteca, Búsqueda) ====================
-// Aquí debes pegar los códigos de window.novedades, window.baLibrary, window.StreamHubSearch
-// adaptados para usar las funciones globales y datos. Por limitaciones de espacio,
-// no puedo incluirlos completos, pero te doy la estructura:
-
-window.novedades = {
-    init: function() {
-        // Renderizar el contenido de novedades dentro de #novedades-page usando DATA
-        // Asegurar que los botones llamen a playEpisode, togglePlaylist, downloadEpisode
-    }
-};
-
-window.baLibrary = {
-    init: function() {
-        // Renderizar biblioteca dentro de #biblioteca-autonoma usando localStorage y DATA
-    }
-};
-
-window.StreamHubSearch = {
-    goHome: function() {
-        // Mostrar vista de exploración (categorías) en #search-page
-    },
-    executeSearch: function(query) {
-        // Mostrar resultados de búsqueda en #search-page
-    },
-    openCategoryByName: function(catName) {
-        // Mostrar vista de categoría en #search-page
-    }
-};
-
-// Puedes copiar los códigos que me diste y reemplazar las llamadas a window.playEpisodeExpanded por playEpisode,
-// y las de añadir por togglePlaylist, y las de descarga por downloadEpisode.
-// También asegúrate de que los botones tengan data-mediaurl.
-
-</script>
+        // ==================== EXPONER FUNCIONES GLOBALES ====================
+        window.addToUserPlaylist = addToUserPlaylist;
+        window.removeFromUserPlaylist = removeFromUserPlaylist;
+        window.togglePlaylist = togglePlaylist;
+        window.playEpisode = playEpisode;
+        window.downloadEpisode = downloadEpisode;
+        window.Router = Router; // para que los botones "Ver todo" puedan navegar
+    </script>
 </body>
 </html>
